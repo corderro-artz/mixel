@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Mixel.Cli/Mixel.Cli.csproj" />
+    <Project Path="src/Mixel.Core/Mixel.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Mixel.Tests/Mixel.Tests.csproj" />
+  </Folder>
+</Solution>
