@@ -16,6 +16,19 @@ public static class ExtrusionService
     public static IReadOnlyList<MixelFile> Single(byte[] png, string baseName, ExtrudeSettings s)
         => Extruder.ExtrudeToMemory(s.ToOptions(png), baseName);
 
+    public static byte[] Zip(IReadOnlyList<Mixel.Core.MixelFile> files)
+    {
+        using var ms = new MemoryStream();
+        using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+            foreach (var f in files)
+            {
+                var e = zip.CreateEntry(f.Name, CompressionLevel.Optimal);
+                using var es = e.Open();
+                es.Write(f.Bytes, 0, f.Bytes.Length);
+            }
+        return ms.ToArray();
+    }
+
     public static byte[] BatchZip(
         IReadOnlyList<(string name, byte[] png)> inputs, ExtrudeSettings s,
         out IReadOnlyList<BatchOutcome> outcomes)

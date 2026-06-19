@@ -49,8 +49,8 @@
 
     private async void OnThemeChanged()
     {
-        await Js.SetThemeAttributeAsync(Theme.CurrentId);
-        await InvokeAsync(StateHasChanged);
+        try { await Js.SetThemeAttributeAsync(Theme.CurrentId); await InvokeAsync(StateHasChanged); }
+        catch (Exception) { /* component may be disposed */ }
     }
 
     private async Task HandleFiles(IReadOnlyList<(string name, byte[] bytes)> files)
@@ -85,7 +85,7 @@
                 await Js.DownloadFileAsync(outFiles[0].Name, outFiles[0].Bytes);
             else // gltf with satellites -> zip
             {
-                var zip = ExtrusionService.BatchZip(new[] { (_files[0].name, _files[0].bytes) }, _settings, out _);
+                var zip = ExtrusionService.Zip(outFiles);
                 await Js.DownloadFileAsync(name + ".zip", zip);
             }
         }

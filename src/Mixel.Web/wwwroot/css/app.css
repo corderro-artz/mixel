@@ -57,6 +57,8 @@ body { background: var(--bg); color: var(--tx); font: 14px/1.5 ui-sans-serif, sy
     inset: calc(20vh + 3.25rem) 0 auto 0.2rem;
 }
 .loading-progress-text:after { content: var(--blazor-load-percentage-text, "Loading"); }
+.blazor-error-boundary { background: var(--acc); color: var(--acc-tx); padding: 12px 16px; }
+.blazor-error-boundary::after { content: "An error has occurred."; }
 #blazor-error-ui {
     color-scheme: light only;
     background: lightyellow;

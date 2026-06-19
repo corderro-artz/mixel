@@ -14,7 +14,8 @@
         foreach (var file in e.GetMultipleFiles(maximumFileCount: 512))
         {
             using var ms = new MemoryStream();
-            await file.OpenReadStream(maxAllowedSize: 64 * 1024 * 1024).CopyToAsync(ms);
+            await using var stream = file.OpenReadStream(maxAllowedSize: 64 * 1024 * 1024);
+            await stream.CopyToAsync(ms);
             list.Add((file.Name, ms.ToArray()));
         }
         await OnFiles.InvokeAsync(list);

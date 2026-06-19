@@ -5,11 +5,11 @@
         @onchange="@(e => OnPick(e.Value?.ToString()))">
     <optgroup label="Dark">
         @foreach (var t in ThemeRegistry.All.Where(t => t.Mode == ThemeMode.Dark))
-        { <option value="@t.Id">@t.Name</option> }
+        { <option value="@t.Id" selected="@(t.Id == Theme.CurrentId)">@t.Name</option> }
     </optgroup>
     <optgroup label="Light">
         @foreach (var t in ThemeRegistry.All.Where(t => t.Mode == ThemeMode.Light))
-        { <option value="@t.Id">@t.Name</option> }
+        { <option value="@t.Id" selected="@(t.Id == Theme.CurrentId)">@t.Name</option> }
     </optgroup>
 </select>
 
