@@ -1,0 +1,9 @@
+@using Mixel.Web.Theming
+<header class="topbar">
+    <div class="logo">mi<b>x</b>el</div>
+    <span class="badge">PWA · offline</span>
+    <div class="spacer"></div>
+    <ThemePicker />
+    @ChildContent
+</header>
+@code { [Parameter] public RenderFragment? ChildContent { get; set; } }

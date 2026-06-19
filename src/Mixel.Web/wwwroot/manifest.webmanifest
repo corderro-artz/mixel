@@ -1,0 +1,13 @@
+{
+  "name": "mixel",
+  "short_name": "mixel",
+  "description": "Extrude PNG pixel art into glTF models — local, offline.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#07080b",
+  "theme_color": "#a11f31",
+  "icons": [
+    { "src": "icon-192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512" }
+  ]
+}

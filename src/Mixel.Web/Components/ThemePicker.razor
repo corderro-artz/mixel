@@ -1,0 +1,18 @@
+@using Mixel.Web.Theming
+@inject ThemeState Theme
+
+<select class="theme-picker" value="@Theme.CurrentId"
+        @onchange="@(e => OnPick(e.Value?.ToString()))">
+    <optgroup label="Dark">
+        @foreach (var t in ThemeRegistry.All.Where(t => t.Mode == ThemeMode.Dark))
+        { <option value="@t.Id" selected="@(t.Id == Theme.CurrentId)">@t.Name</option> }
+    </optgroup>
+    <optgroup label="Light">
+        @foreach (var t in ThemeRegistry.All.Where(t => t.Mode == ThemeMode.Light))
+        { <option value="@t.Id" selected="@(t.Id == Theme.CurrentId)">@t.Name</option> }
+    </optgroup>
+</select>
+
+@code {
+    private async Task OnPick(string? id) { if (id is not null) await Theme.SetAsync(id); }
+}

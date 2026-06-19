@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Mixel.Core;
 
 public static class Extruder
@@ -21,6 +23,12 @@ public static class Extruder
     {
         var (mesh, tex) = Build(o);
         GltfWriter.Write(mesh, tex, o.Format, outputPath);
+    }
+
+    public static IReadOnlyList<MixelFile> ExtrudeToMemory(ExtrudeOptions o, string baseName)
+    {
+        var (mesh, tex) = Build(o);
+        return GltfWriter.WriteToMemory(mesh, tex, o.Format, baseName);
     }
 
     public static string DefaultExtension(GltfFormat f)

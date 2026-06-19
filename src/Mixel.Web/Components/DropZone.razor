@@ -1,0 +1,23 @@
+@using Microsoft.AspNetCore.Components.Forms
+
+<label class="drop">
+    <InputFile OnChange="OnInput" multiple accept=".png" />
+    <span>Drop .png files or click to choose</span>
+</label>
+
+@code {
+    [Parameter] public EventCallback<IReadOnlyList<(string name, byte[] bytes)>> OnFiles { get; set; }
+
+    private async Task OnInput(InputFileChangeEventArgs e)
+    {
+        var list = new List<(string, byte[])>();
+        foreach (var file in e.GetMultipleFiles(maximumFileCount: 512))
+        {
+            using var ms = new MemoryStream();
+            await using var stream = file.OpenReadStream(maxAllowedSize: 64 * 1024 * 1024);
+            await stream.CopyToAsync(ms);
+            list.Add((file.Name, ms.ToArray()));
+        }
+        await OnFiles.InvokeAsync(list);
+    }
+}
