@@ -4,6 +4,9 @@
 bin/
 obj/
 
+# Publish output
+artifacts/
+
 # User-specific files
 *.user
 *.suo
