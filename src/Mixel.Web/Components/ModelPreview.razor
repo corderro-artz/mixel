@@ -1,0 +1,10 @@
+@using Mixel.Web.Interop
+@inject MixelJs Js
+
+<model-viewer @ref="_el" camera-controls touch-action="pan-y" exposure="1"
+              shadow-intensity="0.6" class="preview"></model-viewer>
+
+@code {
+    private ElementReference _el;
+    public async Task ShowAsync(byte[] glb) => await Js.SetModelSrcAsync(_el, glb);
+}

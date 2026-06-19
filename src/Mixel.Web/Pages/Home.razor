@@ -1,5 +1,101 @@
 @page "/"
+@using Mixel.Web.Components
+@using Mixel.Web.Interop
+@using Mixel.Web.Services
+@using Mixel.Web.Theming
+@inject ThemeState Theme
+@inject MixelJs Js
+@implements IDisposable
 
-<PageTitle>mixel</PageTitle>
+<TopBar>
+    <button class="btn primary" disabled="@(_files.Count == 0)" @onclick="ExportAsync">
+        @(_files.Count > 1 ? "Export all (.zip)" : "Export")
+    </button>
+</TopBar>
 
-<h1>mixel</h1>
+<div class="workspace">
+    <aside class="left">
+        <DropZone OnFiles="HandleFiles" />
+        <ul class="filelist">
+            @for (int i = 0; i < _files.Count; i++)
+            {
+                var idx = i;
+                <li class="@(idx == _selected ? "sel" : "")" @onclick="() => SelectAsync(idx)">@_files[idx].name</li>
+            }
+        </ul>
+    </aside>
+
+    <section class="stage">
+        <ModelPreview @ref="_preview" />
+        @if (_files.Count == 0) { <div class="hint">Drop pixel art to begin</div> }
+    </section>
+
+    <aside class="right">
+        <OptionsPanel Settings="_settings" OnChanged="RegenAsync" />
+    </aside>
+</div>
+
+@code {
+    private readonly ExtrudeSettings _settings = new();
+    private List<(string name, byte[] bytes)> _files = new();
+    private int _selected = -1;
+    private ModelPreview? _preview;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Theme.Changed += OnThemeChanged;
+        await Theme.InitAsync();
+    }
+
+    private async void OnThemeChanged()
+    {
+        await Js.SetThemeAttributeAsync(Theme.CurrentId);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleFiles(IReadOnlyList<(string name, byte[] bytes)> files)
+    {
+        _files = files.ToList();
+        _selected = _files.Count > 0 ? 0 : -1;
+        await RegenAsync();
+    }
+
+    private async Task SelectAsync(int idx) { _selected = idx; await RegenAsync(); }
+
+    private async Task RegenAsync()
+    {
+        if (_selected < 0 || _preview is null) return;
+        try
+        {
+            var glb = ExtrusionService.PreviewGlb(_files[_selected].bytes, _settings);
+            await _preview.ShowAsync(glb);
+        }
+        catch { /* invalid/empty image: leave previous preview */ }
+        StateHasChanged();
+    }
+
+    private async Task ExportAsync()
+    {
+        if (_files.Count == 0) return;
+        if (_files.Count == 1)
+        {
+            var name = Path.GetFileNameWithoutExtension(_files[0].name);
+            var outFiles = ExtrusionService.Single(_files[0].bytes, name, _settings);
+            if (outFiles.Count == 1)
+                await Js.DownloadFileAsync(outFiles[0].Name, outFiles[0].Bytes);
+            else // gltf with satellites -> zip
+            {
+                var zip = ExtrusionService.BatchZip(new[] { (_files[0].name, _files[0].bytes) }, _settings, out _);
+                await Js.DownloadFileAsync(name + ".zip", zip);
+            }
+        }
+        else
+        {
+            var zip = ExtrusionService.BatchZip(
+                _files.Select(f => (f.name, f.bytes)).ToList(), _settings, out _);
+            await Js.DownloadFileAsync("mixel-export.zip", zip);
+        }
+    }
+
+    public void Dispose() => Theme.Changed -= OnThemeChanged;
+}

@@ -22,4 +22,7 @@ public sealed class MixelJs
 
     public ValueTask<bool> PrefersDarkAsync()
         => _js.InvokeAsync<bool>("mixel.prefersDark");
+
+    public ValueTask SetThemeAttributeAsync(string id)
+        => _js.InvokeVoidAsync("mixel.setThemeAttribute", id);
 }

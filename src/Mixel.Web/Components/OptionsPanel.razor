@@ -16,20 +16,20 @@
     </div>
     <div class="field">
         <label>Format</label>
-        <select data-test="format" value="@Settings.Format"
+        <select data-test="format"
                 @onchange="@(e => Set(() => Settings.Format = ParseFormat(e.Value?.ToString())))">
-            <option value="Glb">glb</option>
-            <option value="Gltf">gltf</option>
-            <option value="GltfEmbedded">gltf-embedded</option>
+            <option value="Glb" selected="@(Settings.Format == GltfFormat.Glb)">glb</option>
+            <option value="Gltf" selected="@(Settings.Format == GltfFormat.Gltf)">gltf</option>
+            <option value="GltfEmbedded" selected="@(Settings.Format == GltfFormat.GltfEmbedded)">gltf-embedded</option>
         </select>
     </div>
     <div class="field">
         <label>Pivot</label>
-        <select data-test="pivot" value="@Settings.Pivot"
+        <select data-test="pivot"
                 @onchange="@(e => Set(() => Settings.Pivot = ParsePivot(e.Value?.ToString())))">
-            <option value="BottomCenter">bottom-center</option>
-            <option value="Center">center</option>
-            <option value="MinCorner">min-corner</option>
+            <option value="BottomCenter" selected="@(Settings.Pivot == Pivot.BottomCenter)">bottom-center</option>
+            <option value="Center" selected="@(Settings.Pivot == Pivot.Center)">center</option>
+            <option value="MinCorner" selected="@(Settings.Pivot == Pivot.MinCorner)">min-corner</option>
         </select>
     </div>
 </div>
@@ -38,7 +38,7 @@
     [Parameter] public ExtrudeSettings Settings { get; set; } = new();
     [Parameter] public EventCallback OnChanged { get; set; }
 
-    private async void Set(Action mutate) { mutate(); await OnChanged.InvokeAsync(); }
+    private async Task Set(Action mutate) { mutate(); await OnChanged.InvokeAsync(); }
 
     private static int ToInt(object? v, int dflt) => int.TryParse(v?.ToString(), out var r) ? r : dflt;
     private static double ToDouble(object? v, double dflt) => double.TryParse(v?.ToString(), out var r) ? r : dflt;
