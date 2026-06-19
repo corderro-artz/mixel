@@ -1,0 +1,78 @@
+@using Microsoft.AspNetCore.Components.Forms
+@using Mixel.Web.Services
+
+<aside class="filepanel @(_open ? "open" : "collapsed")">
+    @if (_open)
+    {
+        <div class="filepanel-head">
+            <span class="filepanel-title">Files</span>
+            <button type="button" class="icon-btn" aria-label="Collapse files"
+                    @onclick="() => _open = false">◂</button>
+        </div>
+
+        <label class="upload-btn">
+            <InputFile OnChange="OnInput" multiple accept=".png" />
+            <span>＋ Add PNG(s)</span>
+        </label>
+
+        @if (Items.Count > 0)
+        {
+            <div class="filepanel-bulk">
+                <button type="button" class="link-btn" @onclick="OnSelectAll">Select all</button>
+                <button type="button" class="link-btn" @onclick="OnDeselectAll">Deselect all</button>
+            </div>
+
+            <ul class="filelist">
+                @for (int i = 0; i < Items.Count; i++)
+                {
+                    var idx = i;
+                    var item = Items[idx];
+                    <li class="@(idx == SelectedPreview ? "sel" : "")">
+                        <button type="button" class="file-name" title="@item.Name"
+                                @onclick="() => OnPreview.InvokeAsync(idx)">@item.Name</button>
+                        <button type="button" class="switch @(item.Selected ? "on" : "off")"
+                                role="switch" aria-checked="@item.Selected"
+                                aria-label="@(item.Selected ? "Deselect for export" : "Select for export")"
+                                @onclick="() => OnToggle.InvokeAsync(idx)">
+                            <span class="knob"></span>
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p class="filepanel-empty">No files yet. Add PNGs to begin.</p>
+        }
+    }
+    else
+    {
+        <button type="button" class="icon-btn filepanel-toggle" aria-label="Show files"
+                @onclick="() => _open = true">▸</button>
+    }
+</aside>
+
+@code {
+    [Parameter] public List<FileItem> Items { get; set; } = new();
+    [Parameter] public int SelectedPreview { get; set; } = -1;
+    [Parameter] public EventCallback<IReadOnlyList<(string name, byte[] bytes)>> OnUpload { get; set; }
+    [Parameter] public EventCallback<int> OnPreview { get; set; }
+    [Parameter] public EventCallback<int> OnToggle { get; set; }
+    [Parameter] public EventCallback OnSelectAll { get; set; }
+    [Parameter] public EventCallback OnDeselectAll { get; set; }
+
+    private bool _open = true;
+
+    private async Task OnInput(InputFileChangeEventArgs e)
+    {
+        var list = new List<(string, byte[])>();
+        foreach (var file in e.GetMultipleFiles(maximumFileCount: 512))
+        {
+            using var ms = new MemoryStream();
+            await using var stream = file.OpenReadStream(maxAllowedSize: 64 * 1024 * 1024);
+            await stream.CopyToAsync(ms);
+            list.Add((file.Name, ms.ToArray()));
+        }
+        await OnUpload.InvokeAsync(list);
+    }
+}

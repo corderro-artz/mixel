@@ -7,6 +7,7 @@ public static class Extruder
     private static (Mesh mesh, byte[] tex) Build(ExtrudeOptions o)
     {
         var img = PngLoader.Load(o.PngBytes);
+        ImageSize.Validate(img.Width, img.Height, o.AllowNonStandardSize);
         var mask = SilhouetteMask.Build(img);
         var tex = TextureBaker.BakePng(img, mask);
         var mesh = MeshBuilder.Build(mask, o.Depth, o.VoxelSize, o.Pivot);

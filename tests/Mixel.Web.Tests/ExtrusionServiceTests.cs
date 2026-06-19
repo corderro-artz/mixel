@@ -9,7 +9,7 @@ using Xunit;
 
 public class ExtrusionServiceTests
 {
-    private static readonly ExtrudeSettings Default = new();
+    private static readonly ExtrudeSettings Default = new() { AllowNonStandardSize = true };
 
     [Fact]
     public void PreviewGlb_ParsesAsGlb()

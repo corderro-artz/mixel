@@ -11,6 +11,12 @@ const cacheName = `${cacheNamePrefix}${self.assetsManifest.version}`;
 const offlineAssetsInclude = [ /\.dll$/, /\.pdb$/, /\.wasm/, /\.html/, /\.js$/, /\.json$/, /\.css$/, /\.woff$/, /\.png$/, /\.jpe?g$/, /\.gif$/, /\.ico$/, /\.blat$/, /\.dat$/, /\.webmanifest$/ ];
 const offlineAssetsExclude = [ /^service-worker\.js$/ ];
 
+// Cross-origin assets (Google Fonts) aren't in the Blazor asset manifest, so they
+// are cached at runtime on first (online) load and reused offline thereafter. This
+// cache is version-independent so font files survive app updates.
+const runtimeCacheName = `${cacheNamePrefix}runtime`;
+const runtimeCacheHosts = [ 'fonts.googleapis.com', 'fonts.gstatic.com' ];
+
 // Replace with your base path if you are hosting on a subfolder. Ensure there is a trailing '/'.
 const base = "/";
 const baseUrl = new URL(base, self.origin);
@@ -30,14 +36,37 @@ async function onInstall(event) {
 async function onActivate(event) {
     console.info('Service worker: Activate');
 
-    // Delete unused caches
+    // Delete unused caches, but keep the version-independent runtime (font) cache.
     const cacheKeys = await caches.keys();
     await Promise.all(cacheKeys
-        .filter(key => key.startsWith(cacheNamePrefix) && key !== cacheName)
+        .filter(key => key.startsWith(cacheNamePrefix) && key !== cacheName && key !== runtimeCacheName)
         .map(key => caches.delete(key)));
 }
 
 async function onFetch(event) {
+    // Runtime cache-first for Google Fonts: serve from cache when present, otherwise
+    // fetch and store. Falls back to whatever is cached (or a network error) offline.
+    if (event.request.method === 'GET') {
+        const host = new URL(event.request.url).host;
+        if (runtimeCacheHosts.includes(host)) {
+            const cache = await caches.open(runtimeCacheName);
+            const hit = await cache.match(event.request);
+            if (hit) return hit;
+            try {
+                const response = await fetch(event.request);
+                // Only cache genuinely successful responses. Google Fonts serves both
+                // the CSS and the font files with CORS, so response.ok is meaningful;
+                // never cache an error/opaque response or it sticks permanently offline.
+                if (response && response.ok)
+                    await cache.put(event.request, response.clone());
+                return response;
+            } catch (e) {
+                // Offline with no cached copy: nothing to serve, let the CSS fallback fonts apply.
+                return Response.error();
+            }
+        }
+    }
+
     let cachedResponse = null;
     if (event.request.method === 'GET') {
         // For all navigation requests, try to serve index.html from cache,

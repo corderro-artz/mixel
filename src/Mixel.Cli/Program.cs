@@ -38,6 +38,10 @@ public static class Program
         {
             Description = "Descend subdirectories for directory inputs."
         };
+        var allowNonStandardOpt = new Option<bool>("--allow-nonstandard")
+        {
+            Description = "Allow image sizes that are not a power of two from 8 to 1024 per dimension."
+        };
 
         var root = new RootCommand("mixel — extrude PNG pixel art into glTF models.");
         root.Arguments.Add(inputsArg);
@@ -47,6 +51,7 @@ public static class Program
         root.Options.Add(formatOpt);
         root.Options.Add(pivotOpt);
         root.Options.Add(recursiveOpt);
+        root.Options.Add(allowNonStandardOpt);
 
         root.SetAction(parseResult =>
         {
@@ -57,15 +62,16 @@ public static class Program
             string format = parseResult.GetValue(formatOpt)!;
             string pivot = parseResult.GetValue(pivotOpt)!;
             bool recursive = parseResult.GetValue(recursiveOpt);
+            bool allowNonStandard = parseResult.GetValue(allowNonStandardOpt);
 
-            return Run(inputs, output, depth, voxelSize, format, pivot, recursive);
+            return Run(inputs, output, depth, voxelSize, format, pivot, recursive, allowNonStandard);
         });
 
         return root.Parse(args).Invoke();
     }
 
     internal static int Run(string[] inputs, string? output, int depth, double voxelSize,
-        string format, string pivot, bool recursive)
+        string format, string pivot, bool recursive, bool allowNonStandard = false)
     {
         // ---- validate flags -> exit 5 ----
         if (depth < 1) return Fail(5, "depth must be >= 1.");
@@ -92,13 +98,14 @@ public static class Program
                     VoxelSize = (float)voxelSize,
                     Format = fmt,
                     Pivot = piv,
+                    AllowNonStandardSize = allowNonStandard,
                 };
                 Extruder.ExtrudeToFile(opts, outPath);
                 return 0;
             }
 
             // batch: output is a directory
-            var result = BatchRunner.Run(paths, depth, (float)voxelSize, fmt, piv, output);
+            var result = BatchRunner.Run(paths, depth, (float)voxelSize, fmt, piv, output, allowNonStandard);
             foreach (var item in result.Items.Where(i => !i.Success))
                 Console.Error.WriteLine($"  failed: {item.InputPath}: {item.Error}");
             Console.Error.WriteLine($"{result.SucceededCount} succeeded, {result.FailedCount} failed.");
@@ -107,6 +114,7 @@ public static class Program
         catch (FileNotFoundException ex) { return Fail(2, ex.Message); }
         catch (DirectoryNotFoundException ex) { return Fail(2, ex.Message); }
         catch (InvalidPngException ex) { return Fail(3, ex.Message); }
+        catch (InvalidImageSizeException ex) { return Fail(7, ex.Message); }
         catch (EmptySilhouetteException ex) { return Fail(4, ex.Message); }
         catch (UnauthorizedAccessException ex) { return Fail(6, ex.Message); }
         catch (IOException ex) { return Fail(6, ex.Message); }

@@ -16,7 +16,7 @@ public class CliTests
 
         int code = Program.Run(
             new[] { input }, output, depth: 2, voxelSize: 1.0,
-            format: "glb", pivot: "bottom-center", recursive: false);
+            format: "glb", pivot: "bottom-center", recursive: false, allowNonStandard: true);
 
         Assert.Equal(0, code);
         Assert.True(File.Exists(output));
@@ -28,6 +28,21 @@ public class CliTests
         int code = Program.Run(
             new[] { "nope.png" }, null, 1, 1.0, "glb", "bottom-center", false);
         Assert.Equal(2, code);
+    }
+
+    [Fact]
+    public void Run_NonStandardSize_WithoutFlag_ReturnsSeven()
+    {
+        string dir = Directory.CreateTempSubdirectory("mixel_cli_").FullName;
+        string input = Path.Combine(dir, "tiny.png");
+        File.WriteAllBytes(input,
+            TestImages.EncodePng(TestImages.FromAscii(new[] { "##", "##" }, new Rgba(9, 9, 9, 255))));
+
+        int code = Program.Run(
+            new[] { input }, null, depth: 1, voxelSize: 1.0,
+            format: "glb", pivot: "bottom-center", recursive: false);
+
+        Assert.Equal(7, code);
     }
 
     [Fact]

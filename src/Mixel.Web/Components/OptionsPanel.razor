@@ -3,34 +3,70 @@
 
 <div class="options">
     <div class="field">
-        <label>Depth <span class="val">@Settings.Depth vox</span></label>
-        <input type="range" min="1" max="32" step="1" data-test="depth"
-               value="@Settings.Depth"
-               @onchange="@(e => Set(() => Settings.Depth = Math.Max(1, ToInt(e.Value, 1))))" />
+        <label>Depth</label>
+        <div class="stepper" data-test="depth">
+            <button type="button" class="step" aria-label="Decrease depth"
+                    disabled="@(Settings.Depth <= DepthMin)"
+                    @onclick="@(() => Step(() => Settings.Depth = Math.Max(DepthMin, Settings.Depth - 1)))">−</button>
+            <span class="step-val" data-test="depth-val">@Settings.Depth</span>
+            <button type="button" class="step" aria-label="Increase depth"
+                    disabled="@(Settings.Depth >= DepthMax)"
+                    @onclick="@(() => Step(() => Settings.Depth = Math.Min(DepthMax, Settings.Depth + 1)))">+</button>
+        </div>
     </div>
+
     <div class="field">
-        <label>Voxel size <span class="val">@Settings.VoxelSize</span></label>
-        <input type="number" min="0.01" step="0.1" data-test="voxel"
-               value="@Settings.VoxelSize"
-               @onchange="@(e => Set(() => Settings.VoxelSize = Math.Max(0.01, ToDouble(e.Value, 1.0))))" />
+        <label>Voxel size</label>
+        <div class="stepper" data-test="voxel">
+            <button type="button" class="step" aria-label="Decrease voxel size"
+                    disabled="@((int)Settings.VoxelSize <= VoxelMin)"
+                    @onclick="@(() => Step(() => Settings.VoxelSize = Math.Max(VoxelMin, (int)Settings.VoxelSize - 1)))">−</button>
+            <span class="step-val" data-test="voxel-val">@((int)Settings.VoxelSize)</span>
+            <button type="button" class="step" aria-label="Increase voxel size"
+                    disabled="@((int)Settings.VoxelSize >= VoxelMax)"
+                    @onclick="@(() => Step(() => Settings.VoxelSize = Math.Min(VoxelMax, (int)Settings.VoxelSize + 1)))">+</button>
+        </div>
     </div>
+
     <div class="field">
         <label>Format</label>
-        <select data-test="format"
-                @onchange="@(e => Set(() => Settings.Format = ParseFormat(e.Value?.ToString())))">
-            <option value="Glb" selected="@(Settings.Format == GltfFormat.Glb)">glb</option>
-            <option value="Gltf" selected="@(Settings.Format == GltfFormat.Gltf)">gltf</option>
-            <option value="GltfEmbedded" selected="@(Settings.Format == GltfFormat.GltfEmbedded)">gltf-embedded</option>
-        </select>
+        <div class="radios" data-test="format">
+            @foreach (var (val, text) in Formats)
+            {
+                <label class="radio">
+                    <input type="radio" name="fmt" value="@val"
+                           checked="@(Settings.Format == ParseFormat(val))"
+                           @onchange="@(() => Step(() => Settings.Format = ParseFormat(val)))" />
+                    <span>@text</span>
+                </label>
+            }
+        </div>
     </div>
+
     <div class="field">
         <label>Pivot</label>
-        <select data-test="pivot"
-                @onchange="@(e => Set(() => Settings.Pivot = ParsePivot(e.Value?.ToString())))">
-            <option value="BottomCenter" selected="@(Settings.Pivot == Pivot.BottomCenter)">bottom-center</option>
-            <option value="Center" selected="@(Settings.Pivot == Pivot.Center)">center</option>
-            <option value="MinCorner" selected="@(Settings.Pivot == Pivot.MinCorner)">min-corner</option>
-        </select>
+        <div class="radios" data-test="pivot">
+            @foreach (var (val, text) in Pivots)
+            {
+                <label class="radio">
+                    <input type="radio" name="pivot" value="@val"
+                           checked="@(Settings.Pivot == ParsePivot(val))"
+                           @onchange="@(() => Step(() => Settings.Pivot = ParsePivot(val)))" />
+                    <span>@text</span>
+                </label>
+            }
+        </div>
+    </div>
+
+    <div class="field field-row">
+        <label for="allow-nonstd">Allow odd sizes</label>
+        <button id="allow-nonstd" type="button" data-test="allow-nonstd"
+                class="switch @(Settings.AllowNonStandardSize ? "on" : "off")"
+                role="switch" aria-checked="@Settings.AllowNonStandardSize"
+                aria-label="Allow non-standard image sizes"
+                @onclick="@(() => Step(() => Settings.AllowNonStandardSize = !Settings.AllowNonStandardSize))">
+            <span class="knob"></span>
+        </button>
     </div>
 </div>
 
@@ -38,10 +74,20 @@
     [Parameter] public ExtrudeSettings Settings { get; set; } = new();
     [Parameter] public EventCallback OnChanged { get; set; }
 
-    private async Task Set(Action mutate) { mutate(); await OnChanged.InvokeAsync(); }
+    private const int DepthMin = 1, DepthMax = 3;
+    private const int VoxelMin = 1, VoxelMax = 4;
 
-    private static int ToInt(object? v, int dflt) => int.TryParse(v?.ToString(), out var r) ? r : dflt;
-    private static double ToDouble(object? v, double dflt) => double.TryParse(v?.ToString(), out var r) ? r : dflt;
+    private static readonly (string val, string text)[] Formats =
+    {
+        ("Glb", "glb"), ("Gltf", "gltf"), ("GltfEmbedded", "gltf-embedded"),
+    };
+
+    private static readonly (string val, string text)[] Pivots =
+    {
+        ("BottomCenter", "bottom-center"), ("Center", "center"), ("MinCorner", "min-corner"),
+    };
+
+    private async Task Step(Action mutate) { mutate(); await OnChanged.InvokeAsync(); }
 
     public static GltfFormat ParseFormat(string? s) => s switch
     {

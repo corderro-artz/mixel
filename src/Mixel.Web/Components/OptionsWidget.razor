@@ -1,0 +1,25 @@
+@using Mixel.Web.Services
+
+<div class="opt-widget @(_open ? "open" : "collapsed")">
+    @if (_open)
+    {
+        <div class="opt-widget-head">
+            <span class="opt-widget-title">Options</span>
+            <button type="button" class="icon-btn" aria-label="Collapse options"
+                    @onclick="() => _open = false">▸</button>
+        </div>
+        <OptionsPanel Settings="Settings" OnChanged="OnChanged" />
+    }
+    else
+    {
+        <button type="button" class="icon-btn opt-widget-toggle" aria-label="Show options"
+                @onclick="() => _open = true">⚙</button>
+    }
+</div>
+
+@code {
+    [Parameter] public ExtrudeSettings Settings { get; set; } = new();
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private bool _open = true;
+}

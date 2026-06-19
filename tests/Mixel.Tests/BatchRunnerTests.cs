@@ -17,7 +17,7 @@ public class BatchRunnerTests
         string outDir = Directory.CreateTempSubdirectory("mixel_out_").FullName;
         var result = BatchRunner.Run(
             new[] { good, bad }, depth: 1, voxelSize: 1f,
-            GltfFormat.Glb, Pivot.BottomCenter, outDir);
+            GltfFormat.Glb, Pivot.BottomCenter, outDir, allowNonStandardSize: true);
 
         Assert.Equal(1, result.SucceededCount);
         Assert.Equal(1, result.FailedCount);

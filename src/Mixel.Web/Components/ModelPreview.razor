@@ -2,7 +2,9 @@
 @inject MixelJs Js
 
 <model-viewer @ref="_el" camera-controls touch-action="pan-y" exposure="1"
-              shadow-intensity="0.6" class="preview"></model-viewer>
+              shadow-intensity="0.6" class="preview"
+              min-camera-orbit="auto auto 1%" max-camera-orbit="auto auto 4000%"
+              min-field-of-view="2deg" max-field-of-view="120deg"></model-viewer>
 
 @code {
     private ElementReference _el;

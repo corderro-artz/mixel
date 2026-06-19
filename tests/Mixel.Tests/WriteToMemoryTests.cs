@@ -9,7 +9,7 @@ public class WriteToMemoryTests
     private static ExtrudeOptions Opts(GltfFormat fmt) => new()
     {
         PngBytes = TestImages.EncodePng(TestImages.FromAscii(new[] { "##", "##" }, new Rgba(10, 120, 200, 255))),
-        Depth = 2, VoxelSize = 1f, Format = fmt, Pivot = Pivot.MinCorner,
+        Depth = 2, VoxelSize = 1f, Format = fmt, Pivot = Pivot.MinCorner, AllowNonStandardSize = true,
     };
 
     [Fact]

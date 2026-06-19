@@ -1,0 +1,70 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment; cancel in-progress runs for newer pushes.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Repo is served from https://<user>.github.io/mixel/ — everything lives under this subpath.
+      BASE_PATH: /mixel/
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Test
+        run: dotnet test mixel.slnx -c Release
+
+      - name: Publish Blazor WASM
+        run: dotnet publish src/Mixel.Web/Mixel.Web.csproj -c Release -o release
+
+      - name: Rewrite base path for subfolder hosting
+        run: |
+          set -euo pipefail
+          root=release/wwwroot
+          # App base href (controls all relative asset/route resolution).
+          sed -i 's|<base href="/" />|<base href="'"$BASE_PATH"'" />|' "$root/index.html"
+          # Service worker base must match so cached asset URLs resolve under the subpath.
+          sed -i 's|const base = "/";|const base = "'"$BASE_PATH"'";|' "$root/service-worker.js"
+
+      - name: Add SPA fallback and disable Jekyll
+        run: |
+          set -euo pipefail
+          root=release/wwwroot
+          # GitHub Pages serves 404.html for unknown routes; reuse index.html so the SPA boots.
+          cp "$root/index.html" "$root/404.html"
+          # Without .nojekyll, Pages strips the _framework folder (leading underscore).
+          touch "$root/.nojekyll"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: release/wwwroot
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

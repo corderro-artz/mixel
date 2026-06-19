@@ -1,4 +1,5 @@
 @page "/"
+@using Mixel.Core
 @using Mixel.Web.Components
 @using Mixel.Web.Interop
 @using Mixel.Web.Services
@@ -8,38 +9,35 @@
 @implements IDisposable
 
 <TopBar>
-    <button class="btn primary" disabled="@(_files.Count == 0)" @onclick="ExportAsync">
-        @(_files.Count > 1 ? "Export all (.zip)" : "Export")
+    <button class="btn primary" disabled="@(_selectedCount == 0)" @onclick="ExportAsync">
+        @(_selectedCount > 1 ? $"Export {_selectedCount} (.zip)" : "Export")
     </button>
 </TopBar>
 
 <div class="workspace">
-    <aside class="left">
-        <DropZone OnFiles="HandleFiles" />
-        <ul class="filelist">
-            @for (int i = 0; i < _files.Count; i++)
-            {
-                var idx = i;
-                <li class="@(idx == _selected ? "sel" : "")" @onclick="() => SelectAsync(idx)">@_files[idx].name</li>
-            }
-        </ul>
-    </aside>
+    <FilePanel Items="_files" SelectedPreview="_selected"
+               OnUpload="HandleUpload" OnPreview="SelectAsync" OnToggle="ToggleAsync"
+               OnSelectAll="SelectAll" OnDeselectAll="DeselectAll" />
 
     <section class="stage">
         <ModelPreview @ref="_preview" />
-        @if (_files.Count == 0) { <div class="hint">Drop pixel art to begin</div> }
+        @if (_files.Count == 0) { <div class="hint">Add pixel art to begin</div> }
+        @if (_notice is not null)
+        {
+            <div class="notice">@_notice<button @onclick="() => _notice = null" aria-label="Dismiss">✕</button></div>
+        }
+        <OptionsWidget Settings="_settings" OnChanged="RegenAsync" />
     </section>
-
-    <aside class="right">
-        <OptionsPanel Settings="_settings" OnChanged="RegenAsync" />
-    </aside>
 </div>
 
 @code {
     private readonly ExtrudeSettings _settings = new();
-    private List<(string name, byte[] bytes)> _files = new();
+    private List<FileItem> _files = new();
     private int _selected = -1;
     private ModelPreview? _preview;
+    private string? _notice;
+
+    private int _selectedCount => _files.Count(f => f.Selected);
 
     protected override async Task OnInitializedAsync()
     {
@@ -53,47 +51,69 @@
         catch (Exception) { /* component may be disposed */ }
     }
 
-    private async Task HandleFiles(IReadOnlyList<(string name, byte[] bytes)> files)
+    private async Task HandleUpload(IReadOnlyList<(string name, byte[] bytes)> files)
     {
-        _files = files.ToList();
-        _selected = _files.Count > 0 ? 0 : -1;
+        bool wasEmpty = _files.Count == 0;
+        foreach (var (name, bytes) in files)
+            _files.Add(new FileItem { Name = name, Bytes = bytes });
+        if (wasEmpty && _files.Count > 0) _selected = 0;
         await RegenAsync();
     }
 
     private async Task SelectAsync(int idx) { _selected = idx; await RegenAsync(); }
 
+    private Task ToggleAsync(int idx)
+    {
+        _files[idx].Selected = !_files[idx].Selected;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private void SelectAll() { foreach (var f in _files) f.Selected = true; StateHasChanged(); }
+    private void DeselectAll() { foreach (var f in _files) f.Selected = false; StateHasChanged(); }
+
     private async Task RegenAsync()
     {
-        if (_selected < 0 || _preview is null) return;
+        if (_selected < 0 || _selected >= _files.Count || _preview is null) return;
         try
         {
-            var glb = ExtrusionService.PreviewGlb(_files[_selected].bytes, _settings);
+            var glb = ExtrusionService.PreviewGlb(_files[_selected].Bytes, _settings);
             await _preview.ShowAsync(glb);
+            _notice = null;
         }
+        catch (InvalidImageSizeException ex) { _notice = ex.Message; }
         catch { /* invalid/empty image: leave previous preview */ }
         StateHasChanged();
     }
 
     private async Task ExportAsync()
     {
-        if (_files.Count == 0) return;
-        if (_files.Count == 1)
+        var selected = _files.Where(f => f.Selected).ToList();
+        if (selected.Count == 0) return;
+        if (selected.Count == 1)
         {
-            var name = Path.GetFileNameWithoutExtension(_files[0].name);
-            var outFiles = ExtrusionService.Single(_files[0].bytes, name, _settings);
-            if (outFiles.Count == 1)
-                await Js.DownloadFileAsync(outFiles[0].Name, outFiles[0].Bytes);
-            else // gltf with satellites -> zip
+            var name = Path.GetFileNameWithoutExtension(selected[0].Name);
+            try
             {
-                var zip = ExtrusionService.Zip(outFiles);
-                await Js.DownloadFileAsync(name + ".zip", zip);
+                var outFiles = ExtrusionService.Single(selected[0].Bytes, name, _settings);
+                if (outFiles.Count == 1)
+                    await Js.DownloadFileAsync(outFiles[0].Name, outFiles[0].Bytes);
+                else // gltf with satellites -> zip
+                {
+                    var zip = ExtrusionService.Zip(outFiles);
+                    await Js.DownloadFileAsync(name + ".zip", zip);
+                }
+                _notice = null;
             }
+            catch (InvalidImageSizeException ex) { _notice = ex.Message; }
         }
         else
         {
             var zip = ExtrusionService.BatchZip(
-                _files.Select(f => (f.name, f.bytes)).ToList(), _settings, out _);
+                selected.Select(f => (f.Name, f.Bytes)).ToList(), _settings, out var outcomes);
             await Js.DownloadFileAsync("mixel-export.zip", zip);
+            var failed = outcomes.Count(o => !o.Success);
+            _notice = failed > 0 ? $"{failed} of {outcomes.Count} skipped (invalid size or image)." : null;
         }
     }
 

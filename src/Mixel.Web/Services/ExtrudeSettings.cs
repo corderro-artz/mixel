@@ -8,6 +8,7 @@ public sealed class ExtrudeSettings
     public double VoxelSize { get; set; } = 1.0;
     public GltfFormat Format { get; set; } = GltfFormat.Glb;
     public Pivot Pivot { get; set; } = Pivot.BottomCenter;
+    public bool AllowNonStandardSize { get; set; } = false;
 
     public ExtrudeOptions ToOptions(byte[] png) => new()
     {
@@ -16,5 +17,6 @@ public sealed class ExtrudeSettings
         VoxelSize = (float)VoxelSize,
         Format = Format,
         Pivot = Pivot,
+        AllowNonStandardSize = AllowNonStandardSize,
     };
 }

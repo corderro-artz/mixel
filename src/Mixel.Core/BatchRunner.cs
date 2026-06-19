@@ -12,7 +12,8 @@ public static class BatchRunner
 {
     public static BatchResult Run(
         IReadOnlyList<string> pngPaths,
-        int depth, float voxelSize, GltfFormat format, Pivot pivot, string? outputDir)
+        int depth, float voxelSize, GltfFormat format, Pivot pivot, string? outputDir,
+        bool allowNonStandardSize = false)
     {
         var items = new List<BatchItemResult>(pngPaths.Count);
         string ext = Extruder.DefaultExtension(format);
@@ -28,6 +29,7 @@ public static class BatchRunner
                     VoxelSize = voxelSize,
                     Format = format,
                     Pivot = pivot,
+                    AllowNonStandardSize = allowNonStandardSize,
                 };
 
                 string dir = outputDir ?? Path.GetDirectoryName(Path.GetFullPath(path))!;

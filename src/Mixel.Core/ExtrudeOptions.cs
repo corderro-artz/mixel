@@ -7,4 +7,8 @@ public sealed record ExtrudeOptions
     public float VoxelSize { get; init; } = 1f;
     public GltfFormat Format { get; init; } = GltfFormat.Glb;
     public Pivot Pivot { get; init; } = Pivot.BottomCenter;
+
+    /// <summary>When false (default), non-standard image sizes are rejected.
+    /// See <see cref="ImageSize"/>.</summary>
+    public bool AllowNonStandardSize { get; init; } = false;
 }

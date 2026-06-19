@@ -15,6 +15,7 @@ public class ExtruderTests
             Depth = 2,
             VoxelSize = 1f,
             Pivot = Pivot.MinCorner,
+            AllowNonStandardSize = true,
         };
 
         byte[] glb = Extruder.ExtrudeGlb(opts);
@@ -27,7 +28,7 @@ public class ExtruderTests
     public void ExtrudeGlb_EmptyImage_ThrowsEmptySilhouette()
     {
         var img = new RgbaImage { Width = 1, Height = 1, Pixels = new[] { new Rgba(0, 0, 0, 0) } };
-        var opts = new ExtrudeOptions { PngBytes = TestImages.EncodePng(img) };
+        var opts = new ExtrudeOptions { PngBytes = TestImages.EncodePng(img), AllowNonStandardSize = true };
 
         Assert.Throws<EmptySilhouetteException>(() => Extruder.ExtrudeGlb(opts));
     }
