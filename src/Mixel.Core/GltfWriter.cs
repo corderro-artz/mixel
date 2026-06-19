@@ -1,4 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
+using System.Text;
 using SharpGLTF.Geometry;
 using SharpGLTF.Geometry.VertexTypes;
 using SharpGLTF.Materials;
@@ -74,6 +78,59 @@ public static class GltfWriter
                     MergeBuffers = true,
                 });
                 break;
+        }
+    }
+
+    public static IReadOnlyList<MixelFile> WriteToMemory(
+        Mesh mesh, byte[] pngTexture, GltfFormat format, string baseName)
+    {
+        var model = BuildModel(mesh, pngTexture);
+
+        switch (format)
+        {
+            case GltfFormat.Glb:
+                return new[] { new MixelFile($"{baseName}.glb", model.WriteGLB().ToArray()) };
+
+            case GltfFormat.GltfEmbedded:
+            {
+                // Single self-contained .gltf with base64-embedded image + buffer.
+                // SharpGLTF 1.0.6 note: WriteToDictionary does not exist. Use WriteContext.CreateFromDictionary.
+                // EmbeddedAsBase64 embeds images as base64 data URIs, but binary buffers still go as satellite .bin.
+                // To produce a truly single-file .gltf we post-process: replace the satellite .bin uri reference
+                // in the JSON with a base64 data URI (valid per glTF 2.0 spec, §3.6.1.3).
+                var dict = new Dictionary<string, ArraySegment<byte>>();
+                var ctx = WriteContext.CreateFromDictionary(dict);
+                ctx.ImageWriting = ResourceWriteMode.EmbeddedAsBase64;
+                ctx.MergeBuffers = true;
+                ctx.WriteTextSchema2(baseName, model);
+
+                // Inline any satellite .bin files into the gltf JSON as base64 data URIs.
+                var gltfKey = $"{baseName}.gltf";
+                if (dict.TryGetValue(gltfKey, out var gltfSeg))
+                {
+                    var json = Encoding.UTF8.GetString(gltfSeg.Array!, gltfSeg.Offset, gltfSeg.Count);
+                    foreach (var key in dict.Keys.Where(k => k.EndsWith(".bin", StringComparison.Ordinal)))
+                    {
+                        var binSeg = dict[key];
+                        var b64 = Convert.ToBase64String(binSeg.Array!, binSeg.Offset, binSeg.Count);
+                        var dataUri = $"data:application/octet-stream;base64,{b64}";
+                        json = json.Replace($"\"uri\":\"{key}\"", $"\"uri\":\"{dataUri}\"");
+                    }
+                    return new[] { new MixelFile(gltfKey, Encoding.UTF8.GetBytes(json)) };
+                }
+
+                // Fallback: should not be reached, but return all files rather than crash.
+                return dict.Select(kv => new MixelFile(kv.Key, kv.Value.ToArray())).ToList();
+            }
+
+            case GltfFormat.Gltf:
+            default:
+            {
+                var dict = new Dictionary<string, ArraySegment<byte>>();
+                var ctx = WriteContext.CreateFromDictionary(dict);
+                ctx.WriteTextSchema2(baseName, model);
+                return dict.Select(kv => new MixelFile(kv.Key, kv.Value.ToArray())).ToList();
+            }
         }
     }
 }
