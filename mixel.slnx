@@ -2,8 +2,10 @@
   <Folder Name="/src/">
     <Project Path="src/Mixel.Cli/Mixel.Cli.csproj" />
     <Project Path="src/Mixel.Core/Mixel.Core.csproj" />
+    <Project Path="src/Mixel.Web/Mixel.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Mixel.Tests/Mixel.Tests.csproj" />
+    <Project Path="tests/Mixel.Web.Tests/Mixel.Web.Tests.csproj" />
   </Folder>
 </Solution>
