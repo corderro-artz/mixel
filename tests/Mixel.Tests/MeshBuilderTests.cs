@@ -70,9 +70,9 @@ public class MeshBuilderTests
         var ring = MeshBuilder.Build(solidRing, 1, 1f, Pivot.MinCorner);
         var full = MeshBuilder.Build(solidFull, 1, 1f, Pivot.MinCorner);
 
-        // The ring has fewer solid pixels but MORE triangles than... assert it has
-        // interior walls: ring wall-count exceeds the full block's perimeter walls.
-        Assert.True(ring.TriangleCount > full.TriangleCount - 4 /*front+back of hole*/);
-        Assert.True(ring.TriangleCount >= full.TriangleCount); // interior walls dominate
+        // full: 1 greedy rect → 2 face quads (4 tri) + 12 perimeter wall quads (24 tri) = 28
+        Assert.Equal(28, full.TriangleCount);
+        // ring: 4 greedy rects → 8 face quads (16 tri) + 16 wall quads incl. interior hole sides (32 tri) = 48
+        Assert.Equal(48, ring.TriangleCount);
     }
 }

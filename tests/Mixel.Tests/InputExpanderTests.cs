@@ -25,6 +25,21 @@ public class InputExpanderTests
     }
 
     [Fact]
+    public void Expand_Directory_FindsUppercaseExtension()
+    {
+        // On Linux, Directory.EnumerateFiles(dir, "*.png") is case-sensitive and
+        // silently misses files like Hero.PNG. The fix enumerates all files and
+        // post-filters case-insensitively, making both platforms consistent.
+        string dir = Directory.CreateTempSubdirectory("mixel_case_").FullName;
+        File.WriteAllBytes(Path.Combine(dir, "Hero.PNG"), new byte[] { 1 });
+        File.WriteAllBytes(Path.Combine(dir, "logo.png"), new byte[] { 1 });
+
+        var found = InputExpander.Expand(new[] { dir }, recursive: false);
+
+        Assert.Equal(2, found.Count);
+    }
+
+    [Fact]
     public void Expand_MissingPath_Throws()
     {
         Assert.Throws<FileNotFoundException>(

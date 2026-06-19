@@ -10,7 +10,10 @@ public static class InputExpander
             if (Directory.Exists(input))
             {
                 var opt = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-                result.AddRange(Directory.EnumerateFiles(input, "*.png", opt));
+                // Enumerate all files and filter case-insensitively so that uppercase
+                // extensions (e.g. Hero.PNG) are found on Linux as well as Windows.
+                result.AddRange(Directory.EnumerateFiles(input, "*", opt)
+                    .Where(f => f.EndsWith(".png", StringComparison.OrdinalIgnoreCase)));
             }
             else if (File.Exists(input))
             {
