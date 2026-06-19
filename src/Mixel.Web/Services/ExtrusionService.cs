@@ -1,0 +1,49 @@
+using System.IO.Compression;
+using Mixel.Core;
+
+namespace Mixel.Web.Services;
+
+public sealed record BatchOutcome(string Input, bool Success, string? Error);
+
+public static class ExtrusionService
+{
+    public static byte[] PreviewGlb(byte[] png, ExtrudeSettings s)
+    {
+        var opts = s.ToOptions(png) with { Format = GltfFormat.Glb };
+        return Extruder.ExtrudeGlb(opts);
+    }
+
+    public static IReadOnlyList<MixelFile> Single(byte[] png, string baseName, ExtrudeSettings s)
+        => Extruder.ExtrudeToMemory(s.ToOptions(png), baseName);
+
+    public static byte[] BatchZip(
+        IReadOnlyList<(string name, byte[] png)> inputs, ExtrudeSettings s,
+        out IReadOnlyList<BatchOutcome> outcomes)
+    {
+        var results = new List<BatchOutcome>(inputs.Count);
+        using var ms = new MemoryStream();
+        using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var (name, png) in inputs)
+            {
+                var baseName = Path.GetFileNameWithoutExtension(name);
+                try
+                {
+                    foreach (var file in Extruder.ExtrudeToMemory(s.ToOptions(png), baseName))
+                    {
+                        var entry = zip.CreateEntry(file.Name, CompressionLevel.Optimal);
+                        using var es = entry.Open();
+                        es.Write(file.Bytes, 0, file.Bytes.Length);
+                    }
+                    results.Add(new BatchOutcome(name, true, null));
+                }
+                catch (Exception ex)
+                {
+                    results.Add(new BatchOutcome(name, false, ex.Message));
+                }
+            }
+        }
+        outcomes = results;
+        return ms.ToArray();
+    }
+}
