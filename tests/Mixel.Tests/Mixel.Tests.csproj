@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Mixel.Core\Mixel.Core.csproj" />
+    <ProjectReference Include="..\..\src\Mixel.Cli\Mixel.Cli.csproj" />
   </ItemGroup>
 
 </Project>
