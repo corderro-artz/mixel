@@ -2,31 +2,47 @@
 @using Mixel.Web.Services
 
 <div class="options">
-    <div class="field">
-        <label>Depth</label>
-        <div class="stepper" data-test="depth">
-            <button type="button" class="step" aria-label="Decrease depth"
-                    disabled="@(Settings.Depth <= DepthMin)"
-                    @onclick="@(() => Step(() => Settings.Depth = Math.Max(DepthMin, Settings.Depth - 1)))">−</button>
-            <span class="step-val" data-test="depth-val">@Settings.Depth</span>
-            <button type="button" class="step" aria-label="Increase depth"
-                    disabled="@(Settings.Depth >= DepthMax)"
-                    @onclick="@(() => Step(() => Settings.Depth = Math.Min(DepthMax, Settings.Depth + 1)))">+</button>
+    <div class="field field-row">
+        <label>Mode</label>
+        <div class="toggle-group" data-test="mode">
+            <button type="button" class="toggle-btn @(!Settings.PerPixelMode ? "active" : "")"
+                    data-test="mode-simple"
+                    @onclick="@(() => Step(() => Settings.PerPixelMode = false))">Simple</button>
+            <button type="button" class="toggle-btn @(Settings.PerPixelMode ? "active" : "")"
+                    data-test="mode-perpixel"
+                    @onclick="@(() => Step(() => Settings.PerPixelMode = true))">Per-pixel</button>
         </div>
     </div>
 
-    <div class="field">
-        <label>Voxel size</label>
-        <div class="stepper" data-test="voxel">
-            <button type="button" class="step" aria-label="Decrease voxel size"
-                    disabled="@((int)Settings.VoxelSize <= VoxelMin)"
-                    @onclick="@(() => Step(() => Settings.VoxelSize = Math.Max(VoxelMin, (int)Settings.VoxelSize - 1)))">−</button>
-            <span class="step-val" data-test="voxel-val">@((int)Settings.VoxelSize)</span>
-            <button type="button" class="step" aria-label="Increase voxel size"
-                    disabled="@((int)Settings.VoxelSize >= VoxelMax)"
-                    @onclick="@(() => Step(() => Settings.VoxelSize = Math.Min(VoxelMax, (int)Settings.VoxelSize + 1)))">+</button>
+    @if (!Settings.PerPixelMode)
+    {
+        <div class="field">
+            <label>Depth</label>
+            <div class="stepper" data-test="depth">
+                <button type="button" class="step" aria-label="Decrease depth"
+                        disabled="@(Settings.Depth <= DepthMin)"
+                        @onclick="@(() => Step(() => Settings.Depth = Math.Max(DepthMin, Settings.Depth - 1)))">−</button>
+                <span class="step-val" data-test="depth-val">@Settings.Depth</span>
+                <button type="button" class="step" aria-label="Increase depth"
+                        disabled="@(Settings.Depth >= DepthMax)"
+                        @onclick="@(() => Step(() => Settings.Depth = Math.Min(DepthMax, Settings.Depth + 1)))">+</button>
+            </div>
         </div>
-    </div>
+    }
+    else
+    {
+        <div class="field">
+            <label>Max depth levels</label>
+            <select data-test="max-depth-levels"
+                    value="@Settings.MaxDepthLevels"
+                    @onchange="@(e => Step(() => Settings.MaxDepthLevels = int.Parse((string)e.Value!)))">
+                @foreach (var n in MaxDepthOptions)
+                {
+                    <option value="@n">@n</option>
+                }
+            </select>
+        </div>
+    }
 
     <div class="field">
         <label>Format</label>
@@ -75,7 +91,7 @@
     [Parameter] public EventCallback OnChanged { get; set; }
 
     private const int DepthMin = 1, DepthMax = 3;
-    private const int VoxelMin = 1, VoxelMax = 4;
+    private static readonly int[] MaxDepthOptions = { 8, 16, 24, 32 };
 
     private static readonly (string val, string text)[] Formats =
     {
