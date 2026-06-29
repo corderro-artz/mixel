@@ -22,6 +22,9 @@ public static class ExtrusionService
     public static IReadOnlyList<MixelFile> Single(byte[] png, string baseName, ExtrudeSettings s)
         => Extruder.ExtrudeToMemory(s.ToOptions(png), baseName);
 
+    public static IReadOnlyList<MixelFile> Single(byte[] png, string baseName, ExtrudeSettings s, FileItem? item)
+        => Extruder.ExtrudeToMemory(s.ToOptions(png, item), baseName);
+
     public static byte[] Zip(IReadOnlyList<Mixel.Core.MixelFile> files)
     {
         using var ms = new MemoryStream();

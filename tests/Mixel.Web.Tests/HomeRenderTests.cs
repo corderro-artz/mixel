@@ -23,7 +23,7 @@ public class HomeRenderTests : BunitContext
     }
 
     [Fact]
-    public void Home_PerPixelMode_ShowsDepthPainterNotModelViewer_WhenFileLoaded()
+    public void Home_Renders_Workspace()
     {
         // Not easily testable with bUnit (DepthPainter requires JS interop).
         // Verify Home renders without error in PerPixelMode=true scenario.

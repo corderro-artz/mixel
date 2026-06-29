@@ -135,7 +135,8 @@
         try
         {
             var item = CurrentItem;
-            var glb = ExtrusionService.PreviewGlb(item!.Bytes, _settings, item);
+            if (item is null) return;
+            var glb = ExtrusionService.PreviewGlb(item.Bytes, _settings, item);
             await _preview.ShowAsync(glb);
             _notice = null;
         }
@@ -154,7 +155,7 @@
             var name = Path.GetFileNameWithoutExtension(f.Name);
             try
             {
-                var outFiles = ExtrusionService.Single(f.Bytes, name, _settings);
+                var outFiles = ExtrusionService.Single(f.Bytes, name, _settings, f);
                 if (outFiles.Count == 1)
                     await Js.DownloadFileAsync(outFiles[0].Name, outFiles[0].Bytes);
                 else
