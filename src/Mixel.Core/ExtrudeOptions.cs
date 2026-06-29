@@ -11,4 +11,7 @@ public sealed record ExtrudeOptions
     /// <summary>When false (default), non-standard image sizes are rejected.
     /// See <see cref="ImageSize"/>.</summary>
     public bool AllowNonStandardSize { get; init; } = false;
+
+    /// <summary>When non-null, activates per-pixel depth mode. Overrides <see cref="Depth"/>.</summary>
+    public DepthMap? DepthMap { get; init; } = null;
 }

@@ -6,11 +6,13 @@ public static class Extruder
 {
     private static (Mesh mesh, byte[] tex) Build(ExtrudeOptions o)
     {
-        var img = PngLoader.Load(o.PngBytes);
+        var img  = PngLoader.Load(o.PngBytes);
         ImageSize.Validate(img.Width, img.Height, o.AllowNonStandardSize);
         var mask = SilhouetteMask.Build(img);
-        var tex = TextureBaker.BakePng(img, mask);
-        var mesh = MeshBuilder.Build(mask, o.Depth, o.VoxelSize, o.Pivot);
+        var tex  = TextureBaker.BakePng(img, mask);
+        var mesh = o.DepthMap is not null
+            ? MeshBuilder.BuildFromDepthMap(o.DepthMap, o.VoxelSize, o.Pivot)
+            : MeshBuilder.Build(mask, o.Depth, o.VoxelSize, o.Pivot);
         return (mesh, tex);
     }
 
