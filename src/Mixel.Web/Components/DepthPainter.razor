@@ -1,0 +1,98 @@
+@using Mixel.Web.Interop
+@using Mixel.Web.Services
+@using Microsoft.JSInterop
+@inject MixelJs Js
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<div class="depth-painter">
+    <div class="painter-tools" data-test="painter-tools">
+        <button class="tool-btn @Active(PainterTool.Paint)"   data-test="tool-paint"
+                @onclick="@(()=>SetTool(PainterTool.Paint))">✏️</button>
+        <button class="tool-btn @Active(PainterTool.Fill)"    data-test="tool-fill"
+                @onclick="@(()=>SetTool(PainterTool.Fill))">🪣</button>
+        <button class="tool-btn @Active(PainterTool.Eyedrop)" data-test="tool-eyedrop"
+                @onclick="@(()=>SetTool(PainterTool.Eyedrop))">🔍</button>
+        <button class="tool-btn @Active(PainterTool.Erase)"   data-test="tool-erase"
+                @onclick="@(()=>SetTool(PainterTool.Erase))">✕</button>
+    </div>
+
+    <canvas id="depth-canvas" class="depth-canvas" data-test="depth-canvas"></canvas>
+
+    <div class="depth-palette" data-test="depth-palette">
+        @for (int i = 1; i <= Settings.MaxDepthLevels; i++)
+        {
+            var level = (byte)i;
+            <button class="palette-swatch @(Painter.ActiveLevel == level ? "active" : "")"
+                    data-test="swatch-@i"
+                    @onclick="@(()=>SelectLevel(level))"></button>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public FileItem? Item { get; set; }
+    [Parameter] public ExtrudeSettings Settings { get; set; } = new();
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private readonly DepthPainterState Painter = new();
+    private DotNetObjectReference<DepthPainter>? _self;
+    private bool _canvasReady;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _self = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("mixel.listenCanvasInput", "depth-canvas", _self);
+        }
+        if (Item?.DepthLevels != null && !_canvasReady)
+        {
+            _canvasReady = true;
+            var rgba = ExtractRgba(Item.Bytes);
+            await Js.InitDepthCanvasAsync("depth-canvas", rgba, Item.DepthWidth, Item.DepthHeight);
+            await Js.RenderDepthOverlayAsync("depth-canvas", Item.DepthLevels,
+                Item.DepthWidth, Item.DepthHeight, Settings.MaxDepthLevels);
+        }
+    }
+
+    protected override void OnParametersSet() => _canvasReady = false;
+
+    [JSInvokable]
+    public async Task OnCanvasInput(int x, int y, int buttons)
+    {
+        if (Item?.DepthLevels == null) return;
+        var mask = Item.SolidMask ?? Item.DepthLevels.Select(l => l != 0).ToArray();
+        bool changed = Painter.Apply(Item.DepthLevels, mask, Item.DepthWidth, Item.DepthHeight, x, y);
+        if (!changed) return;
+        await Js.RenderDepthOverlayAsync("depth-canvas", Item.DepthLevels,
+            Item.DepthWidth, Item.DepthHeight, Settings.MaxDepthLevels);
+        await OnChanged.InvokeAsync();
+    }
+
+    private void SetTool(PainterTool tool) { Painter.Tool = tool; StateHasChanged(); }
+    private void SelectLevel(byte level) { Painter.ActiveLevel = level; StateHasChanged(); }
+    private string Active(PainterTool tool) => Painter.Tool == tool ? "active" : "";
+
+    /// <summary>Decode PNG bytes to flat RGBA using Mixel.Core.PngLoader (StbImageSharp).</summary>
+    private static byte[] ExtractRgba(byte[] pngBytes)
+    {
+        var img = Mixel.Core.PngLoader.Load(pngBytes);
+        var rgba = new byte[img.Pixels.Length * 4];
+        for (int i = 0; i < img.Pixels.Length; i++)
+        {
+            var p = img.Pixels[i];
+            rgba[i * 4]     = p.R;
+            rgba[i * 4 + 1] = p.G;
+            rgba[i * 4 + 2] = p.B;
+            rgba[i * 4 + 3] = p.A;
+        }
+        return rgba;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _self?.Dispose();
+        await Task.CompletedTask;
+    }
+}

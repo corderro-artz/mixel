@@ -10,4 +10,7 @@ public sealed class FileItem
     public byte[]? DepthLevels { get; set; }
     public int DepthWidth      { get; set; }
     public int DepthHeight     { get; set; }
+
+    /// <summary>True for pixels that are solid (non-transparent) in the source PNG. Set alongside DepthLevels.</summary>
+    public bool[]? SolidMask   { get; set; }
 }
