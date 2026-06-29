@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace Mixel.Core;
 
 public static class MeshBuilder
@@ -125,6 +127,120 @@ public static class MeshBuilder
         mesh.Positions.Add(p.x); mesh.Positions.Add(p.y); mesh.Positions.Add(p.z);
         mesh.Normals.Add(n.x); mesh.Normals.Add(n.y); mesh.Normals.Add(n.z);
         mesh.Uvs.Add(uv.u); mesh.Uvs.Add(uv.v);
+    }
+
+    public static Mesh BuildFromDepthMap(DepthMap dm, float voxelSize, Pivot pivot)
+    {
+        if (dm.MaxLevel == 0) throw new EmptySilhouetteException();
+
+        int w = dm.Width, h = dm.Height;
+        float s = voxelSize;
+        var mesh = new Mesh();
+
+        // Back face (z = 0): greedy merge over all solid pixels
+        {
+            var used = new bool[w * h];
+            for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                if (dm.At(x, y) == 0 || used[y * w + x]) continue;
+                int x1 = x;
+                while (x1 + 1 < w && dm.At(x1 + 1, y) > 0 && !used[y * w + x1 + 1]) x1++;
+                int y1 = y;
+                bool canGrow = true;
+                while (canGrow && y1 + 1 < h)
+                {
+                    for (int xx = x; xx <= x1; xx++)
+                        if (dm.At(xx, y1 + 1) == 0 || used[(y1 + 1) * w + xx]) { canGrow = false; break; }
+                    if (canGrow) y1++;
+                }
+                for (int yy = y; yy <= y1; yy++)
+                for (int xx = x; xx <= x1; xx++)
+                    used[yy * w + xx] = true;
+
+                float X0 = x * s, X1 = (x1 + 1) * s;
+                float Ytop = (h - y) * s, Ybot = (h - 1 - y1) * s;
+                float u0 = (float)x / w, u1 = (float)(x1 + 1) / w;
+                float vtop = (float)y / h, vbot = (float)(y1 + 1) / h;
+                AddQuadUv(mesh, (0, 0, -1),
+                    (X1, Ybot, 0f), (u1, vbot),
+                    (X0, Ybot, 0f), (u0, vbot),
+                    (X0, Ytop, 0f), (u0, vtop),
+                    (X1, Ytop, 0f), (u1, vtop));
+            }
+        }
+
+        // Front faces: group by level, greedy merge within each level
+        var distinctLevels = dm.Levels.Distinct().Where(l => l > 0).OrderBy(l => l).ToArray();
+        foreach (byte level in distinctLevels)
+        {
+            float zf = level * s;
+            var used = new bool[w * h];
+            for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                if (dm.At(x, y) != level || used[y * w + x]) continue;
+                int x1 = x;
+                while (x1 + 1 < w && dm.At(x1 + 1, y) == level && !used[y * w + x1 + 1]) x1++;
+                int y1 = y;
+                bool canGrow = true;
+                while (canGrow && y1 + 1 < h)
+                {
+                    for (int xx = x; xx <= x1; xx++)
+                        if (dm.At(xx, y1 + 1) != level || used[(y1 + 1) * w + xx]) { canGrow = false; break; }
+                    if (canGrow) y1++;
+                }
+                for (int yy = y; yy <= y1; yy++)
+                for (int xx = x; xx <= x1; xx++)
+                    used[yy * w + xx] = true;
+
+                float X0 = x * s, X1 = (x1 + 1) * s;
+                float Ytop = (h - y) * s, Ybot = (h - 1 - y1) * s;
+                float u0 = (float)x / w, u1 = (float)(x1 + 1) / w;
+                float vtop = (float)y / h, vbot = (float)(y1 + 1) / h;
+                AddQuadUv(mesh, (0, 0, 1),
+                    (X0, Ybot, zf), (u0, vbot),
+                    (X1, Ybot, zf), (u1, vbot),
+                    (X1, Ytop, zf), (u1, vtop),
+                    (X0, Ytop, zf), (u0, vtop));
+            }
+        }
+
+        // Side walls: per solid pixel, emit wall only where D > neighbour
+        for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
+        {
+            byte D = dm.At(x, y);
+            if (D == 0) continue;
+            float zTop = D * s;
+            float xl = x * s, xr = (x + 1) * s;
+            float yt = (h - y) * s, yb = (h - 1 - y) * s;
+            float u = (x + 0.5f) / w, v = (y + 0.5f) / h;
+            byte nd;
+
+            nd = dm.At(x - 1, y);
+            if (D > nd)
+                AddQuad(mesh, (-1, 0, 0), u, v,
+                    (xl, yb, nd * s), (xl, yb, zTop), (xl, yt, zTop), (xl, yt, nd * s));
+
+            nd = dm.At(x + 1, y);
+            if (D > nd)
+                AddQuad(mesh, (1, 0, 0), u, v,
+                    (xr, yb, zTop), (xr, yb, nd * s), (xr, yt, nd * s), (xr, yt, zTop));
+
+            nd = dm.At(x, y - 1);
+            if (D > nd)
+                AddQuad(mesh, (0, 1, 0), u, v,
+                    (xl, yt, zTop), (xr, yt, zTop), (xr, yt, nd * s), (xl, yt, nd * s));
+
+            nd = dm.At(x, y + 1);
+            if (D > nd)
+                AddQuad(mesh, (0, -1, 0), u, v,
+                    (xl, yb, nd * s), (xr, yb, nd * s), (xr, yb, zTop), (xl, yb, zTop));
+        }
+
+        ApplyPivot(mesh, pivot, w, h, dm.MaxLevel, s);
+        return mesh;
     }
 
     private static void ApplyPivot(Mesh mesh, Pivot pivot, int w, int h, int depth, float s)
