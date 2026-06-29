@@ -38,8 +38,6 @@ public sealed class ExtrudeSettings
                     Width   = item.DepthWidth,
                     Height  = item.DepthHeight,
                     Levels  = item.DepthLevels,
-                    OffsetX = 0,
-                    OffsetY = 0,
                 },
             };
         }

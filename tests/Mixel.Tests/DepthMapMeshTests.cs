@@ -12,7 +12,7 @@ public class DepthMapMeshTests
         for (int y = 0; y < h; y++)
             for (int x = 0; x < w; x++)
                 levels[y * w + x] = (byte)grid[y, x];
-        return new DepthMap { Width = w, Height = h, Levels = levels, OffsetX = 0, OffsetY = 0 };
+        return new DepthMap { Width = w, Height = h, Levels = levels };
     }
 
     private static Mask Mk(bool[,] grid)

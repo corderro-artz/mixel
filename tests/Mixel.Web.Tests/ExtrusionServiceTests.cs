@@ -30,10 +30,10 @@ public class ExtrusionServiceTests
     [Fact]
     public void BatchZip_GoodAndBad_ZipsGood_ReportsBad()
     {
-        var inputs = new (string, byte[])[]
+        var inputs = new (string name, byte[] png, FileItem? item)[]
         {
-            ("good.png", PngFixture.Solid(2, 2, 1, 2, 3)),
-            ("bad.png", new byte[] { 9, 9, 9 }), // not a PNG
+            ("good.png", PngFixture.Solid(2, 2, 1, 2, 3), null),
+            ("bad.png", new byte[] { 9, 9, 9 }, null), // not a PNG
         };
 
         var zip = ExtrusionService.BatchZip(inputs, Default, out var outcomes);

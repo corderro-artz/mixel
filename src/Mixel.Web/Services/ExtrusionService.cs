@@ -39,19 +39,19 @@ public static class ExtrusionService
     }
 
     public static byte[] BatchZip(
-        IReadOnlyList<(string name, byte[] png)> inputs, ExtrudeSettings s,
+        IReadOnlyList<(string name, byte[] png, FileItem? item)> inputs, ExtrudeSettings s,
         out IReadOnlyList<BatchOutcome> outcomes)
     {
         var results = new List<BatchOutcome>(inputs.Count);
         using var ms = new MemoryStream();
         using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
         {
-            foreach (var (name, png) in inputs)
+            foreach (var (name, png, item) in inputs)
             {
                 var baseName = Path.GetFileNameWithoutExtension(name);
                 try
                 {
-                    foreach (var file in Extruder.ExtrudeToMemory(s.ToOptions(png), baseName))
+                    foreach (var file in Extruder.ExtrudeToMemory(s.ToOptions(png, item), baseName))
                     {
                         var entry = zip.CreateEntry(file.Name, CompressionLevel.Optimal);
                         using var es = entry.Open();

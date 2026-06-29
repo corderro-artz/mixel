@@ -170,7 +170,7 @@
         else
         {
             var zip = ExtrusionService.BatchZip(
-                selected.Select(f => (f.Name, f.Bytes)).ToList(), _settings, out var outcomes);
+                selected.Select(f => (f.Name, f.Bytes, (FileItem?)f)).ToList(), _settings, out var outcomes);
             await Js.DownloadFileAsync("mixel-export.zip", zip);
             var failed = outcomes.Count(o => !o.Success);
             _notice = failed > 0 ? $"{failed} of {outcomes.Count} skipped (invalid size or image)." : null;

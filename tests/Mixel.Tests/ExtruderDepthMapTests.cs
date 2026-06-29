@@ -11,7 +11,7 @@ public class ExtruderDepthMapTests
 
     private static DepthMap FlatDM(int w, int h, byte level) => new()
     {
-        Width = w, Height = h, OffsetX = 0, OffsetY = 0,
+        Width = w, Height = h,
         Levels = Enumerable.Repeat(level, w * h).Select(x => (byte)x).ToArray()
     };
 

@@ -35,7 +35,7 @@
             <label>Max depth levels</label>
             <select data-test="max-depth-levels"
                     value="@Settings.MaxDepthLevels"
-                    @onchange="@(e => Step(() => Settings.MaxDepthLevels = int.Parse((string)e.Value!)))">
+                    @onchange="@(e => Step(() => Settings.MaxDepthLevels = int.TryParse((string?)e.Value, out var n) ? n : 16))">
                 @foreach (var n in MaxDepthOptions)
                 {
                     <option value="@n">@n</option>

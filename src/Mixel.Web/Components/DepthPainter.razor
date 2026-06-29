@@ -60,6 +60,8 @@
     protected override void OnParametersSet()
     {
         if (!ReferenceEquals(Item, _prevItem)) { _canvasReady = false; _prevItem = Item; }
+        if (Painter.ActiveLevel > Settings.MaxDepthLevels)
+            Painter.ActiveLevel = (byte)Settings.MaxDepthLevels;
     }
 
     [JSInvokable]

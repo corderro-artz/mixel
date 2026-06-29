@@ -6,7 +6,7 @@ public class DepthMapTests
 {
     private static DepthMap Make(byte[] levels, int w, int h) => new()
     {
-        Width = w, Height = h, Levels = levels, OffsetX = 0, OffsetY = 0
+        Width = w, Height = h, Levels = levels
     };
 
     [Fact]

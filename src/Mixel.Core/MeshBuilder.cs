@@ -138,36 +138,17 @@ public static class MeshBuilder
         var mesh = new Mesh();
 
         // Back face (z = 0): greedy merge over all solid pixels
+        foreach (var (x, y, x1, y1) in GreedyRects(w, h, (x, y) => dm.At(x, y) > 0))
         {
-            var used = new bool[w * h];
-            for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-            {
-                if (dm.At(x, y) == 0 || used[y * w + x]) continue;
-                int x1 = x;
-                while (x1 + 1 < w && dm.At(x1 + 1, y) > 0 && !used[y * w + x1 + 1]) x1++;
-                int y1 = y;
-                bool canGrow = true;
-                while (canGrow && y1 + 1 < h)
-                {
-                    for (int xx = x; xx <= x1; xx++)
-                        if (dm.At(xx, y1 + 1) == 0 || used[(y1 + 1) * w + xx]) { canGrow = false; break; }
-                    if (canGrow) y1++;
-                }
-                for (int yy = y; yy <= y1; yy++)
-                for (int xx = x; xx <= x1; xx++)
-                    used[yy * w + xx] = true;
-
-                float X0 = x * s, X1 = (x1 + 1) * s;
-                float Ytop = (h - y) * s, Ybot = (h - 1 - y1) * s;
-                float u0 = (float)x / w, u1 = (float)(x1 + 1) / w;
-                float vtop = (float)y / h, vbot = (float)(y1 + 1) / h;
-                AddQuadUv(mesh, (0, 0, -1),
-                    (X1, Ybot, 0f), (u1, vbot),
-                    (X0, Ybot, 0f), (u0, vbot),
-                    (X0, Ytop, 0f), (u0, vtop),
-                    (X1, Ytop, 0f), (u1, vtop));
-            }
+            float X0 = x * s, X1 = (x1 + 1) * s;
+            float Ytop = (h - y) * s, Ybot = (h - 1 - y1) * s;
+            float u0 = (float)x / w, u1 = (float)(x1 + 1) / w;
+            float vtop = (float)y / h, vbot = (float)(y1 + 1) / h;
+            AddQuadUv(mesh, (0, 0, -1),
+                (X1, Ybot, 0f), (u1, vbot),
+                (X0, Ybot, 0f), (u0, vbot),
+                (X0, Ytop, 0f), (u0, vtop),
+                (X1, Ytop, 0f), (u1, vtop));
         }
 
         // Front faces: group by level, greedy merge within each level
@@ -175,25 +156,8 @@ public static class MeshBuilder
         foreach (byte level in distinctLevels)
         {
             float zf = level * s;
-            var used = new bool[w * h];
-            for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
+            foreach (var (x, y, x1, y1) in GreedyRects(w, h, (x, y) => dm.At(x, y) == level))
             {
-                if (dm.At(x, y) != level || used[y * w + x]) continue;
-                int x1 = x;
-                while (x1 + 1 < w && dm.At(x1 + 1, y) == level && !used[y * w + x1 + 1]) x1++;
-                int y1 = y;
-                bool canGrow = true;
-                while (canGrow && y1 + 1 < h)
-                {
-                    for (int xx = x; xx <= x1; xx++)
-                        if (dm.At(xx, y1 + 1) != level || used[(y1 + 1) * w + xx]) { canGrow = false; break; }
-                    if (canGrow) y1++;
-                }
-                for (int yy = y; yy <= y1; yy++)
-                for (int xx = x; xx <= x1; xx++)
-                    used[yy * w + xx] = true;
-
                 float X0 = x * s, X1 = (x1 + 1) * s;
                 float Ytop = (h - y) * s, Ybot = (h - 1 - y1) * s;
                 float u0 = (float)x / w, u1 = (float)(x1 + 1) / w;
@@ -241,6 +205,31 @@ public static class MeshBuilder
 
         ApplyPivot(mesh, pivot, w, h, dm.MaxLevel, s);
         return mesh;
+    }
+
+    private static IEnumerable<(int x, int y, int x1, int y1)> GreedyRects(
+        int w, int h, Func<int, int, bool> pred)
+    {
+        var used = new bool[w * h];
+        for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
+        {
+            if (!pred(x, y) || used[y * w + x]) continue;
+            int x1 = x;
+            while (x1 + 1 < w && pred(x1 + 1, y) && !used[y * w + x1 + 1]) x1++;
+            int y1 = y;
+            bool canGrow = true;
+            while (canGrow && y1 + 1 < h)
+            {
+                for (int xx = x; xx <= x1; xx++)
+                    if (!pred(xx, y1 + 1) || used[(y1 + 1) * w + xx]) { canGrow = false; break; }
+                if (canGrow) y1++;
+            }
+            for (int yy = y; yy <= y1; yy++)
+            for (int xx = x; xx <= x1; xx++)
+                used[yy * w + xx] = true;
+            yield return (x, y, x1, y1);
+        }
     }
 
     private static void ApplyPivot(Mesh mesh, Pivot pivot, int w, int h, int depth, float s)
