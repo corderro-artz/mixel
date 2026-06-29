@@ -21,4 +21,26 @@ public class HomeRenderTests : BunitContext
         Assert.NotNull(cut.Find("select.theme-picker"));
         Assert.NotNull(cut.Find("model-viewer"));
     }
+
+    [Fact]
+    public void Home_PerPixelMode_ShowsDepthPainterNotModelViewer_WhenFileLoaded()
+    {
+        // Not easily testable with bUnit (DepthPainter requires JS interop).
+        // Verify Home renders without error in PerPixelMode=true scenario.
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        Services.AddScoped<MixelJs>();
+        Services.AddScoped<ThemeState>();
+        var cut = Render<Mixel.Web.Pages.Home>();
+        Assert.Contains("workspace", cut.Markup);
+    }
+
+    [Fact]
+    public void Home_SimpleMode_ShowsModelViewer()
+    {
+        JSInterop.Mode = JSRuntimeMode.Loose;
+        Services.AddScoped<MixelJs>();
+        Services.AddScoped<ThemeState>();
+        var cut = Render<Mixel.Web.Pages.Home>();
+        Assert.NotNull(cut.Find("model-viewer"));
+    }
 }

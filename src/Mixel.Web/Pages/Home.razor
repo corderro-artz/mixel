@@ -19,14 +19,35 @@
                OnUpload="HandleUpload" OnPreview="SelectAsync" OnToggle="ToggleAsync"
                OnSelectAll="SelectAll" OnDeselectAll="DeselectAll" />
 
-    <section class="stage">
-        <ModelPreview @ref="_preview" />
+    <section class="stage @(_sideBySide ? "stage-split" : "")">
+        @if (_settings.PerPixelMode && _showPainter)
+        {
+            <DepthPainter Item="CurrentItem" Settings="_settings" OnChanged="RegenAsync" />
+        }
+        @if (!_settings.PerPixelMode || !_showPainter || _sideBySide)
+        {
+            <ModelPreview @ref="_preview" />
+        }
+
         @if (_files.Count == 0) { <div class="hint">Add pixel art to begin</div> }
         @if (_notice is not null)
         {
             <div class="notice">@_notice<button @onclick="() => _notice = null" aria-label="Dismiss">✕</button></div>
         }
-        <OptionsWidget Settings="_settings" OnChanged="RegenAsync" />
+
+        <div class="stage-controls">
+            @if (_settings.PerPixelMode && CurrentItem != null)
+            {
+                <button class="icon-btn" data-test="toggle-view"
+                        title="@(_showPainter ? "Show 3D preview" : "Show painter")"
+                        @onclick="ToggleView">@(_showPainter ? "🎲" : "✏️")</button>
+                <button class="icon-btn @(_sideBySide ? "active" : "")" data-test="toggle-split"
+                        title="Side by side"
+                        @onclick="() => _sideBySide = !_sideBySide">⬛</button>
+            }
+        </div>
+
+        <OptionsWidget Settings="_settings" OnChanged="OnSettingsChanged" />
     </section>
 </div>
 
@@ -36,8 +57,11 @@
     private int _selected = -1;
     private ModelPreview? _preview;
     private string? _notice;
+    private bool _showPainter = true;
+    private bool _sideBySide = false;
 
     private int _selectedCount => _files.Count(f => f.Selected);
+    private FileItem? CurrentItem => _selected >= 0 && _selected < _files.Count ? _files[_selected] : null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -48,7 +72,7 @@
     private async void OnThemeChanged()
     {
         try { await Js.SetThemeAttributeAsync(Theme.CurrentId); await InvokeAsync(StateHasChanged); }
-        catch (Exception) { /* component may be disposed */ }
+        catch (Exception) { }
     }
 
     private async Task HandleUpload(IReadOnlyList<(string name, byte[] bytes)> files)
@@ -57,10 +81,16 @@
         foreach (var (name, bytes) in files)
             _files.Add(new FileItem { Name = name, Bytes = bytes });
         if (wasEmpty && _files.Count > 0) _selected = 0;
+        if (_settings.PerPixelMode) EnsureDepthLevels(CurrentItem);
         await RegenAsync();
     }
 
-    private async Task SelectAsync(int idx) { _selected = idx; await RegenAsync(); }
+    private async Task SelectAsync(int idx)
+    {
+        _selected = idx;
+        if (_settings.PerPixelMode) EnsureDepthLevels(CurrentItem);
+        await RegenAsync();
+    }
 
     private Task ToggleAsync(int idx)
     {
@@ -72,17 +102,45 @@
     private void SelectAll() { foreach (var f in _files) f.Selected = true; StateHasChanged(); }
     private void DeselectAll() { foreach (var f in _files) f.Selected = false; StateHasChanged(); }
 
+    private async Task OnSettingsChanged()
+    {
+        if (_settings.PerPixelMode) EnsureDepthLevels(CurrentItem);
+        await RegenAsync();
+    }
+
+    private void ToggleView() { _showPainter = !_showPainter; StateHasChanged(); }
+
+    private static void EnsureDepthLevels(FileItem? item)
+    {
+        if (item == null || item.DepthLevels != null) return;
+        var img = PngLoader.Load(item.Bytes);
+        int w = img.Width, h = img.Height;
+        var levels = new byte[w * h];
+        var solid  = new bool[w * h];
+        for (int i = 0; i < img.Pixels.Length; i++)
+        {
+            bool opaque = img.Pixels[i].A > 0;
+            solid[i]  = opaque;
+            levels[i] = opaque ? (byte)1 : (byte)0;
+        }
+        item.DepthLevels  = levels;
+        item.SolidMask    = solid;
+        item.DepthWidth   = w;
+        item.DepthHeight  = h;
+    }
+
     private async Task RegenAsync()
     {
         if (_selected < 0 || _selected >= _files.Count || _preview is null) return;
         try
         {
-            var glb = ExtrusionService.PreviewGlb(_files[_selected].Bytes, _settings);
+            var item = CurrentItem;
+            var glb = ExtrusionService.PreviewGlb(item!.Bytes, _settings, item);
             await _preview.ShowAsync(glb);
             _notice = null;
         }
         catch (InvalidImageSizeException ex) { _notice = ex.Message; }
-        catch { /* invalid/empty image: leave previous preview */ }
+        catch { /* invalid/empty image */ }
         StateHasChanged();
     }
 
@@ -92,13 +150,14 @@
         if (selected.Count == 0) return;
         if (selected.Count == 1)
         {
-            var name = Path.GetFileNameWithoutExtension(selected[0].Name);
+            var f = selected[0];
+            var name = Path.GetFileNameWithoutExtension(f.Name);
             try
             {
-                var outFiles = ExtrusionService.Single(selected[0].Bytes, name, _settings);
+                var outFiles = ExtrusionService.Single(f.Bytes, name, _settings);
                 if (outFiles.Count == 1)
                     await Js.DownloadFileAsync(outFiles[0].Name, outFiles[0].Bytes);
-                else // gltf with satellites -> zip
+                else
                 {
                     var zip = ExtrusionService.Zip(outFiles);
                     await Js.DownloadFileAsync(name + ".zip", zip);
