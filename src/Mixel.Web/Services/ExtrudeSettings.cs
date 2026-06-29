@@ -9,6 +9,8 @@ public sealed class ExtrudeSettings
     public GltfFormat Format { get; set; } = GltfFormat.Glb;
     public Pivot Pivot { get; set; } = Pivot.BottomCenter;
     public bool AllowNonStandardSize { get; set; } = false;
+    public bool PerPixelMode   { get; set; } = false;
+    public int  MaxDepthLevels { get; set; } = 16;
 
     public ExtrudeOptions ToOptions(byte[] png) => new()
     {
@@ -19,4 +21,28 @@ public sealed class ExtrudeSettings
         Pivot = Pivot,
         AllowNonStandardSize = AllowNonStandardSize,
     };
+
+    public ExtrudeOptions ToOptions(byte[] png, FileItem? item)
+    {
+        if (PerPixelMode && item?.DepthLevels != null)
+        {
+            return new ExtrudeOptions
+            {
+                PngBytes = png,
+                VoxelSize = (float)VoxelSize,
+                Format = Format,
+                Pivot = Pivot,
+                AllowNonStandardSize = AllowNonStandardSize,
+                DepthMap = new DepthMap
+                {
+                    Width   = item.DepthWidth,
+                    Height  = item.DepthHeight,
+                    Levels  = item.DepthLevels,
+                    OffsetX = 0,
+                    OffsetY = 0,
+                },
+            };
+        }
+        return ToOptions(png);
+    }
 }

@@ -5,4 +5,9 @@ public sealed class FileItem
     public required string Name { get; init; }
     public required byte[] Bytes { get; init; }
     public bool Selected { get; set; } = true;
+
+    /// <summary>Null until per-pixel mode activates. 0=air, 1..N=depth level.</summary>
+    public byte[]? DepthLevels { get; set; }
+    public int DepthWidth      { get; set; }
+    public int DepthHeight     { get; set; }
 }

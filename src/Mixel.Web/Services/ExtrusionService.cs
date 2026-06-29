@@ -13,6 +13,12 @@ public static class ExtrusionService
         return Extruder.ExtrudeGlb(opts);
     }
 
+    public static byte[] PreviewGlb(byte[] png, ExtrudeSettings s, FileItem? item)
+    {
+        var opts = s.ToOptions(png, item) with { Format = GltfFormat.Glb };
+        return Extruder.ExtrudeGlb(opts);
+    }
+
     public static IReadOnlyList<MixelFile> Single(byte[] png, string baseName, ExtrudeSettings s)
         => Extruder.ExtrudeToMemory(s.ToOptions(png), baseName);
 

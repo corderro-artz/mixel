@@ -44,4 +44,25 @@ public class ExtrusionServiceTests
         Assert.Contains(za.Entries, e => e.FullName == "good.glb");
         Assert.DoesNotContain(za.Entries, e => e.FullName.StartsWith("bad"));
     }
+
+    [Fact]
+    public void PreviewGlb_WithFileItemDepthLevels_ReturnsBytes()
+    {
+        var png = PngFixture.Solid(2, 2, 200, 50, 50);
+        var settings = new ExtrudeSettings { PerPixelMode = true, AllowNonStandardSize = true };
+        var item = new FileItem
+        {
+            Name = "test.png",
+            Bytes = png,
+            DepthLevels = new byte[] { 1, 2, 1, 2 },
+            DepthWidth = 2,
+            DepthHeight = 2
+        };
+
+        var glb = ExtrusionService.PreviewGlb(png, settings, item);
+
+        Assert.NotEmpty(glb);
+        var model = ModelRoot.ParseGLB(new ArraySegment<byte>(glb));
+        Assert.Single(model.LogicalMeshes);
+    }
 }
