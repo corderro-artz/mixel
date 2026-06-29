@@ -38,6 +38,7 @@
     private readonly DepthPainterState Painter = new();
     private DotNetObjectReference<DepthPainter>? _self;
     private bool _canvasReady;
+    private FileItem? _prevItem;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -56,7 +57,10 @@
         }
     }
 
-    protected override void OnParametersSet() => _canvasReady = false;
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(Item, _prevItem)) { _canvasReady = false; _prevItem = Item; }
+    }
 
     [JSInvokable]
     public async Task OnCanvasInput(int x, int y, int buttons)

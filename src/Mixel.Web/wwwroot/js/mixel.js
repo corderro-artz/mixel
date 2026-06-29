@@ -52,7 +52,10 @@ window.mixel = {
       overlay.data[i * 4 + 2] = b;
       overlay.data[i * 4 + 3] = 160;
     }
-    ctx.putImageData(overlay, 0, 0);
+    const tmp = document.createElement("canvas");
+    tmp.width = w; tmp.height = h;
+    tmp.getContext("2d").putImageData(overlay, 0, 0);
+    ctx.drawImage(tmp, 0, 0);
   },
 
   listenCanvasInput: function (id, dotNetRef) {
