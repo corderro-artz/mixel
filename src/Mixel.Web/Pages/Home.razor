@@ -16,18 +16,18 @@
 
 <div class="workspace">
     <FilePanel Items="_files" SelectedPreview="_selected"
-               OnUpload="HandleUpload" OnPreview="SelectAsync" OnToggle="ToggleAsync"
+               OnUpload="HandleUpload" OnLoadSample="LoadSampleAsync"
+               OnPreview="SelectAsync" OnToggle="ToggleAsync"
                OnSelectAll="SelectAll" OnDeselectAll="DeselectAll" />
 
-    <section class="stage @(_sideBySide ? "stage-split" : "")">
-        @if (_settings.PerPixelMode && _showPainter)
-        {
-            <DepthPainter Item="CurrentItem" Settings="_settings" OnChanged="RegenAsync" />
-        }
-        @if (!_settings.PerPixelMode || !_showPainter || _sideBySide)
-        {
-            <ModelPreview @ref="_preview" />
-        }
+    <section class="stage">
+        <div class="stage-views @(_sideBySide ? "stage-split" : "")">
+            @if (_settings.PerPixelMode && _showPainter)
+            {
+                <DepthPainter Item="CurrentItem" Settings="_settings" OnChanged="RegenAsync" />
+            }
+            <ModelPreview @ref="_preview" Hidden="@(_settings.PerPixelMode && _showPainter && !_sideBySide)" />
+        </div>
 
         @if (_files.Count == 0) { <div class="hint">Add pixel art to begin</div> }
         @if (_notice is not null)
@@ -75,13 +75,20 @@
         catch (Exception) { }
     }
 
+    private async Task LoadSampleAsync()
+    {
+        var bytes = await Js.FetchBytesAsync("/samples/rainbow16.png");
+        await HandleUpload(new[] { ("rainbow16.png", bytes) });
+    }
+
     private async Task HandleUpload(IReadOnlyList<(string name, byte[] bytes)> files)
     {
         bool wasEmpty = _files.Count == 0;
         foreach (var (name, bytes) in files)
             _files.Add(new FileItem { Name = name, Bytes = bytes });
         if (wasEmpty && _files.Count > 0) _selected = 0;
-        if (_settings.PerPixelMode) EnsureDepthLevels(CurrentItem);
+        if (_settings.PerPixelMode)
+            foreach (var f in _files) EnsureDepthLevels(f);
         await RegenAsync();
     }
 
@@ -117,14 +124,21 @@
         int w = img.Width, h = img.Height;
         var levels = new byte[w * h];
         var solid  = new bool[w * h];
+        var rgba   = new byte[img.Pixels.Length * 4];
         for (int i = 0; i < img.Pixels.Length; i++)
         {
-            bool opaque = img.Pixels[i].A > 0;
+            var p = img.Pixels[i];
+            bool opaque = p.A > 0;
             solid[i]  = opaque;
             levels[i] = opaque ? (byte)1 : (byte)0;
+            rgba[i * 4]     = p.R;
+            rgba[i * 4 + 1] = p.G;
+            rgba[i * 4 + 2] = p.B;
+            rgba[i * 4 + 3] = p.A;
         }
         item.DepthLevels  = levels;
         item.SolidMask    = solid;
+        item.RgbaBytes    = rgba;
         item.DepthWidth   = w;
         item.DepthHeight  = h;
     }

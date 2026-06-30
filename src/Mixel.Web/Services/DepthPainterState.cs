@@ -34,6 +34,22 @@ public sealed class DepthPainterState
         }
     }
 
+    /// <summary>
+    /// Cycle the depth level at (x,y): 0/1/2/.../maxDepth wraps back to 1.
+    /// Air pixels (solidMask[idx]==false) are no-ops.
+    /// Returns true if levels was mutated.
+    /// </summary>
+    public bool CycleLevel(byte[] levels, bool[] solidMask, int w, int h, int x, int y, int maxDepth)
+    {
+        if (x < 0 || y < 0 || x >= w || y >= h) return false;
+        int idx = y * w + x;
+        if (!solidMask[idx]) return false;
+        byte next = (byte)(levels[idx] % maxDepth + 1);
+        if (levels[idx] == next) return false;
+        levels[idx] = next;
+        return true;
+    }
+
     private bool FloodFill(byte[] levels, bool[] solidMask, int w, int h, int sx, int sy)
     {
         int startIdx = sy * w + sx;

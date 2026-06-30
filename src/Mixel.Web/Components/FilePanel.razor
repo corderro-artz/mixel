@@ -14,6 +14,7 @@
             <InputFile OnChange="OnInput" multiple accept=".png" />
             <span>＋ Add PNG(s)</span>
         </label>
+        <button type="button" class="link-btn sample-btn" @onclick="OnLoadSample">Try sample →</button>
 
         @if (Items.Count > 0)
         {
@@ -56,6 +57,7 @@
     [Parameter] public List<FileItem> Items { get; set; } = new();
     [Parameter] public int SelectedPreview { get; set; } = -1;
     [Parameter] public EventCallback<IReadOnlyList<(string name, byte[] bytes)>> OnUpload { get; set; }
+    [Parameter] public EventCallback OnLoadSample { get; set; }
     [Parameter] public EventCallback<int> OnPreview { get; set; }
     [Parameter] public EventCallback<int> OnToggle { get; set; }
     [Parameter] public EventCallback OnSelectAll { get; set; }

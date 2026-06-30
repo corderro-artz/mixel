@@ -29,6 +29,16 @@ window.mixel = {
     if (!canvas) return;
     canvas.width = w;
     canvas.height = h;
+    // Scale to fill the painter container (skip canvas-wrap which has no intrinsic size yet)
+    const parent = canvas.closest('.depth-painter') || canvas.parentElement;
+    if (parent) {
+      // 56px top padding + ~44px toolbar row + 8px gap + 8px bottom padding = ~116px overhead
+      const availW = parent.clientWidth  - 16;
+      const availH = parent.clientHeight - 116;
+      const scale  = Math.max(1, Math.min(Math.floor(availW / w), Math.floor(availH / h)));
+      canvas.style.width  = (w * scale) + 'px';
+      canvas.style.height = (h * scale) + 'px';
+    }
     const ctx = canvas.getContext("2d");
     const imageData = ctx.createImageData(w, h);
     for (let i = 0; i < pngBytes.length; i++) imageData.data[i] = pngBytes[i];
@@ -41,21 +51,123 @@ window.mixel = {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (canvas.__mixelPng) ctx.putImageData(canvas.__mixelPng, 0, 0);
+    // Subtle white tint on all painted pixels — numbers from renderDepthLabels are the primary indicator
     const overlay = ctx.createImageData(w, h);
     for (let i = 0; i < levels.length; i++) {
-      const lvl = levels[i];
-      if (lvl === 0) continue;
-      const hue = Math.round((lvl - 1) / Math.max(maxDepth - 1, 1) * 270);
-      const [r, g, b] = window.mixel._hslToRgb(hue / 360, 1, 0.5);
-      overlay.data[i * 4]     = r;
-      overlay.data[i * 4 + 1] = g;
-      overlay.data[i * 4 + 2] = b;
-      overlay.data[i * 4 + 3] = 160;
+      if (levels[i] === 0) continue;
+      overlay.data[i * 4]     = 255;
+      overlay.data[i * 4 + 1] = 255;
+      overlay.data[i * 4 + 2] = 255;
+      overlay.data[i * 4 + 3] = 55;
     }
-    const tmp = document.createElement("canvas");
-    tmp.width = w; tmp.height = h;
+    if (!window.mixel._overlayCanvas) window.mixel._overlayCanvas = document.createElement("canvas");
+    const tmp = window.mixel._overlayCanvas;
+    if (tmp.width !== w) tmp.width = w;
+    if (tmp.height !== h) tmp.height = h;
     tmp.getContext("2d").putImageData(overlay, 0, 0);
     ctx.drawImage(tmp, 0, 0);
+  },
+
+  renderDepthLabels: function (artId, labelId, levels, w, h) {
+    const art = document.getElementById(artId);
+    const label = document.getElementById(labelId);
+    if (!art || !label) return;
+
+    // Size label canvas to match the art canvas CSS display dimensions
+    const cssW = parseInt(art.style.width)  || art.clientWidth  || art.width;
+    const cssH = parseInt(art.style.height) || art.clientHeight || art.height;
+    if (label.width !== cssW || label.height !== cssH) {
+      label.width  = cssW;
+      label.height = cssH;
+    }
+    label.style.width  = cssW + 'px';
+    label.style.height = cssH + 'px';
+
+    const ctx = label.getContext("2d");
+    ctx.clearRect(0, 0, cssW, cssH);
+
+    const cellW = cssW / w;
+    const cellH = cssH / h;
+    const fontSize = Math.max(5, Math.floor(Math.min(cellW, cellH) * 0.6));
+
+    ctx.font = `bold ${fontSize}px monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const lvl = levels[y * w + x];
+        if (lvl === 0) continue;
+        const cx = x * cellW + cellW / 2;
+        const cy = y * cellH + cellH / 2;
+        ctx.lineWidth = Math.max(1, fontSize * 0.25);
+        ctx.strokeStyle = "rgba(0,0,0,0.85)";
+        ctx.strokeText(String(lvl), cx, cy);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(String(lvl), cx, cy);
+      }
+    }
+  },
+
+  _overlayCanvas: null,
+
+  // ---- context menus ----
+  _ctxMenu: null,
+
+  _showMenu: function (x, y, items, onAction) {
+    window.mixel._hideMenu();
+    const menu = document.createElement('div');
+    menu.className = 'ctx-menu';
+    menu.style.left = Math.min(x, window.innerWidth  - 200) + 'px';
+    menu.style.top  = Math.min(y, window.innerHeight - items.length * 40 - 12) + 'px';
+    items.forEach(({ label, action }) => {
+      const btn = document.createElement('button');
+      btn.className = 'ctx-item';
+      btn.textContent = label;
+      btn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        window.mixel._hideMenu();
+        onAction(action);
+      });
+      menu.appendChild(btn);
+    });
+    document.body.appendChild(menu);
+    window.mixel._ctxMenu = menu;
+    document.addEventListener('pointerdown', window.mixel._hideMenu, { once: true });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.mixel._hideMenu(); }, { once: true });
+  },
+
+  _hideMenu: function () {
+    if (window.mixel._ctxMenu) { window.mixel._ctxMenu.remove(); window.mixel._ctxMenu = null; }
+  },
+
+  listenContextMenu: function (id, dotNetRef) {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      window.mixel._showMenu(e.clientX, e.clientY, [
+        { label: '↺  Reset all depths → 1',       action: 'reset-to-one' },
+        { label: '✕  Erase all depths → 0',        action: 'erase-all'   },
+        { label: '⬛  Fill all → current level',   action: 'fill-all'    },
+        { label: '⇅  Invert depths',               action: 'invert'      },
+      ], (action) => dotNetRef.invokeMethodAsync('OnContextAction', action));
+    });
+  },
+
+  listenModelContextMenu: function (el) {
+    if (!el) return;
+    el.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      window.mixel._showMenu(e.clientX, e.clientY, [
+        { label: '↺  Reset camera', action: 'reset-camera' },
+      ], (action) => {
+        if (action === 'reset-camera') {
+          el.cameraOrbit = 'auto auto 100%';
+          el.fieldOfView = 'auto';
+        }
+      });
+    });
   },
 
   listenCanvasInput: function (id, dotNetRef) {
@@ -83,23 +195,10 @@ window.mixel = {
     canvas.addEventListener("pointerup", () => { canvas.__mixelDown = false; });
   },
 
-  _hslToRgb: function (h, s, l) {
-    let r, g, b;
-    if (s === 0) { r = g = b = l; }
-    else {
-      const hue2rgb = (p, q, t) => {
-        if (t < 0) t += 1; if (t > 1) t -= 1;
-        if (t < 1/6) return p + (q - p) * 6 * t;
-        if (t < 1/2) return q;
-        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-        return p;
-      };
-      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-      const p = 2 * l - q;
-      r = hue2rgb(p, q, h + 1/3);
-      g = hue2rgb(p, q, h);
-      b = hue2rgb(p, q, h - 1/3);
-    }
-    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
-  }
+  fetchBytes: async function (url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`fetch ${url} → ${r.status}`);
+    return new Uint8Array(await r.arrayBuffer());
+  },
+
 };

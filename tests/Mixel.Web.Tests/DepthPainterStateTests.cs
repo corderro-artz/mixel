@@ -144,6 +144,51 @@ public class DepthPainterStateTests
     }
 
     [Fact]
+    public void CycleLevel_IncrementsLevel()
+    {
+        int w = 1, h = 1;
+        var levels = new byte[] { 1 };
+        var solid  = new bool[] { true };
+        var state = new DepthPainterState();
+        bool changed = state.CycleLevel(levels, solid, w, h, 0, 0, 16);
+        Assert.True(changed);
+        Assert.Equal(2, levels[0]);
+    }
+
+    [Fact]
+    public void CycleLevel_WrapsAtMaxDepth()
+    {
+        int w = 1, h = 1;
+        var levels = new byte[] { 16 };
+        var solid  = new bool[] { true };
+        var state = new DepthPainterState();
+        bool changed = state.CycleLevel(levels, solid, w, h, 0, 0, 16);
+        Assert.True(changed);
+        Assert.Equal(1, levels[0]);
+    }
+
+    [Fact]
+    public void CycleLevel_AirPixel_IsNoop()
+    {
+        int w = 1, h = 1;
+        var levels = new byte[] { 0 };
+        var solid  = new bool[] { false };
+        var state = new DepthPainterState();
+        bool changed = state.CycleLevel(levels, solid, w, h, 0, 0, 16);
+        Assert.False(changed);
+        Assert.Equal(0, levels[0]);
+    }
+
+    [Fact]
+    public void CycleLevel_OutOfBounds_ReturnsFalse()
+    {
+        var (levels, solid, w, h) = Grid3x3();
+        var state = new DepthPainterState();
+        Assert.False(state.CycleLevel(levels, solid, w, h, -1, 0, 16));
+        Assert.False(state.CycleLevel(levels, solid, w, h, w, 0, 16));
+    }
+
+    [Fact]
     public void Apply_OutOfBounds_ReturnsFalse()
     {
         var (levels, solid, w, h) = Grid3x3();

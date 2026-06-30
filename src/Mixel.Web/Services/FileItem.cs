@@ -13,4 +13,7 @@ public sealed class FileItem
 
     /// <summary>True for pixels that are solid (non-transparent) in the source PNG. Set alongside DepthLevels.</summary>
     public bool[]? SolidMask   { get; set; }
+
+    /// <summary>Raw RGBA bytes for the canvas, computed once alongside DepthLevels to avoid decoding the PNG twice.</summary>
+    public byte[]? RgbaBytes   { get; set; }
 }

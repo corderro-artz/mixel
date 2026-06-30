@@ -35,6 +35,7 @@ body { background: var(--bg); color: var(--tx); font: 16px/1.5 var(--font-body);
 .filepanel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .filepanel-title { font: 700 12px/1 var(--font-head); letter-spacing: .08em; text-transform: uppercase; }
 .filepanel-empty { color: var(--mut); font-size: 13px; margin-top: 14px; }
+.sample-btn { display: block; margin-top: 6px; font-size: 12px; }
 .upload-btn { display: block; position: relative; border: 2px dashed var(--bd); border-radius: 10px;
     padding: 14px 10px; text-align: center; color: var(--tx); cursor: pointer; font: 600 14px/1.2 var(--font-body); }
 .upload-btn:hover { border-color: var(--acc); color: var(--acc); }
@@ -56,10 +57,20 @@ body { background: var(--bg); color: var(--tx); font: 16px/1.5 var(--font-body);
 .switch.on .knob { left: 18px; background: var(--acc-tx); }
 
 /* ---- stage ---- */
-.stage { flex: 1; background:
-   linear-gradient(0deg, var(--grid) 1px, transparent 1px) 0 0/100% 28px,
-   linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0/28px 100%, var(--stage);
+.stage { flex: 1; display: flex; flex-direction: column;
+   background:
+     linear-gradient(0deg, var(--grid) 1px, transparent 1px) 0 0/100% 28px,
+     linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0/28px 100%, var(--stage);
    position: relative; min-height: 0; }
+
+/* views wrapper — fills the stage, children layer via absolute positioning */
+.stage-views { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.stage-views > * { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* split: switch to grid, children become normal grid items */
+.stage-views.stage-split { display: grid; grid-template-columns: 1fr 1fr; position: static; }
+.stage-views.stage-split > * { position: static; inset: auto; width: 100%; height: 100%; }
+
 .preview { width: 100%; height: 100%; --poster-color: transparent; }
 .hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--mut); pointer-events: none; font-size: 16px; }
 .notice { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 6;
@@ -91,18 +102,22 @@ body { background: var(--bg); color: var(--tx); font: 16px/1.5 var(--font-body);
 .radios .radio input { accent-color: var(--acc); width: 15px; height: 15px; cursor: pointer; }
 
 /* ---- depth painter ---- */
-.depth-painter { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px; width: 100%; height: 100%; box-sizing: border-box; }
-.depth-canvas { image-rendering: pixelated; image-rendering: crisp-edges; max-width: 100%; max-height: 60vh; cursor: crosshair; }
-.painter-tools { display: flex; gap: 6px; }
+.depth-painter { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 56px 8px 8px; width: 100%; height: 100%; box-sizing: border-box; }
+.depth-canvas-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
+.depth-canvas { image-rendering: pixelated; image-rendering: crisp-edges; max-width: 100%; cursor: crosshair; display: block; }
+.depth-labels { position: absolute; inset: 0; pointer-events: none; image-rendering: auto; display: block; }
+.painter-tools { display: flex; align-items: center; gap: 6px; }
 .tool-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--bd); background: var(--bg); color: var(--tx); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
 .tool-btn.active, .tool-btn:hover { background: var(--acc); color: var(--acc-tx); border-color: var(--acc); }
-.depth-palette { display: flex; flex-wrap: wrap; gap: 4px; max-width: 320px; }
-.palette-swatch { width: 20px; height: 20px; border-radius: 4px; border: 2px solid var(--bd); cursor: pointer; }
-.palette-swatch.active { border-color: var(--acc); box-shadow: 0 0 0 2px var(--acc); }
+.level-badge { display: inline-flex; align-items: center; height: 36px; padding: 0 10px; background: var(--acc); color: var(--acc-tx); border-radius: 8px; border: 1px solid var(--acc); font: 700 13px/1 var(--font-head); letter-spacing: .03em; }
 
-/* ---- stage split view ---- */
-.stage-split { display: grid !important; grid-template-columns: 1fr 1fr; }
+/* ---- stage controls ---- */
 .stage-controls { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; gap: 6px; }
+
+/* ---- context menu ---- */
+.ctx-menu { position: fixed; z-index: 9999; background: var(--panel); border: 1px solid var(--bd); border-radius: 10px; padding: 4px; box-shadow: 0 8px 28px rgba(0,0,0,.45); min-width: 196px; }
+.ctx-item { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--tx); cursor: pointer; font: 500 13px/1.2 var(--font-body); padding: 9px 12px; border-radius: 7px; white-space: nowrap; }
+.ctx-item:hover, .ctx-item:focus { background: var(--acc); color: var(--acc-tx); outline: none; }
 
 /* ---- mode toggle (OptionsPanel) ---- */
 .toggle-group { display: flex; border: 1px solid var(--bd); border-radius: 9px; overflow: hidden; }

@@ -103,7 +103,7 @@
         ("BottomCenter", "bottom-center"), ("Center", "center"), ("MinCorner", "min-corner"),
     };
 
-    private async Task Step(Action mutate) { mutate(); await OnChanged.InvokeAsync(); }
+    private async Task Step(Action mutate) { mutate(); StateHasChanged(); await OnChanged.InvokeAsync(); }
 
     public static GltfFormat ParseFormat(string? s) => s switch
     {

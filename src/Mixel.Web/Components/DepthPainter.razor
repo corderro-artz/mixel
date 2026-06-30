@@ -15,18 +15,15 @@
                 @onclick="@(()=>SetTool(PainterTool.Eyedrop))">🔍</button>
         <button class="tool-btn @Active(PainterTool.Erase)"   data-test="tool-erase"
                 @onclick="@(()=>SetTool(PainterTool.Erase))">✕</button>
+        @if (Painter.Tool == PainterTool.Fill || Painter.Tool == PainterTool.Eyedrop)
+        {
+            <span class="level-badge" data-test="level-badge">Lv @Painter.ActiveLevel</span>
+        }
     </div>
 
-    <canvas id="depth-canvas" class="depth-canvas" data-test="depth-canvas"></canvas>
-
-    <div class="depth-palette" data-test="depth-palette">
-        @for (int i = 1; i <= Settings.MaxDepthLevels; i++)
-        {
-            var level = (byte)i;
-            <button class="palette-swatch @(Painter.ActiveLevel == level ? "active" : "")"
-                    data-test="swatch-@i"
-                    @onclick="@(()=>SelectLevel(level))"></button>
-        }
+    <div class="depth-canvas-wrap">
+        <canvas id="depth-canvas" class="depth-canvas" data-test="depth-canvas"></canvas>
+        <canvas id="depth-labels" class="depth-labels"></canvas>
     </div>
 </div>
 
@@ -45,15 +42,17 @@
         if (firstRender)
         {
             _self = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync("mixel.listenCanvasInput", "depth-canvas", _self);
+            await JSRuntime.InvokeVoidAsync("mixel.listenCanvasInput",   "depth-canvas", _self);
+            await JSRuntime.InvokeVoidAsync("mixel.listenContextMenu",   "depth-canvas", _self);
         }
-        if (Item?.DepthLevels != null && !_canvasReady)
+        if (Item?.DepthLevels != null && Item.RgbaBytes != null && !_canvasReady)
         {
             _canvasReady = true;
-            var rgba = ExtractRgba(Item.Bytes);
-            await Js.InitDepthCanvasAsync("depth-canvas", rgba, Item.DepthWidth, Item.DepthHeight);
+            await Js.InitDepthCanvasAsync("depth-canvas", Item.RgbaBytes, Item.DepthWidth, Item.DepthHeight);
             await Js.RenderDepthOverlayAsync("depth-canvas", Item.DepthLevels,
                 Item.DepthWidth, Item.DepthHeight, Settings.MaxDepthLevels);
+            await Js.RenderDepthLabelsAsync("depth-canvas", "depth-labels",
+                Item.DepthLevels, Item.DepthWidth, Item.DepthHeight);
         }
     }
 
@@ -69,32 +68,57 @@
     {
         if (Item?.DepthLevels == null) return;
         var mask = Item.SolidMask ?? Item.DepthLevels.Select(l => l != 0).ToArray();
-        bool changed = Painter.Apply(Item.DepthLevels, mask, Item.DepthWidth, Item.DepthHeight, x, y);
+        bool changed = Painter.Tool == PainterTool.Paint
+            ? Painter.CycleLevel(Item.DepthLevels, mask, Item.DepthWidth, Item.DepthHeight, x, y, Settings.MaxDepthLevels)
+            : Painter.Apply(Item.DepthLevels, mask, Item.DepthWidth, Item.DepthHeight, x, y);
         if (!changed) return;
         await Js.RenderDepthOverlayAsync("depth-canvas", Item.DepthLevels,
             Item.DepthWidth, Item.DepthHeight, Settings.MaxDepthLevels);
+        await Js.RenderDepthLabelsAsync("depth-canvas", "depth-labels",
+            Item.DepthLevels, Item.DepthWidth, Item.DepthHeight);
+        await OnChanged.InvokeAsync();
+    }
+
+    [JSInvokable]
+    public async Task OnContextAction(string action)
+    {
+        if (Item?.DepthLevels == null) return;
+        var mask = Item.SolidMask ?? Item.DepthLevels.Select(l => l != 0).ToArray();
+        byte max = (byte)Settings.MaxDepthLevels;
+
+        switch (action)
+        {
+            case "reset-to-one":
+                for (int i = 0; i < Item.DepthLevels.Length; i++)
+                    if (mask[i]) Item.DepthLevels[i] = 1;
+                break;
+            case "erase-all":
+                Array.Clear(Item.DepthLevels, 0, Item.DepthLevels.Length);
+                break;
+            case "fill-all":
+                for (int i = 0; i < Item.DepthLevels.Length; i++)
+                    if (mask[i]) Item.DepthLevels[i] = Painter.ActiveLevel;
+                break;
+            case "invert":
+                for (int i = 0; i < Item.DepthLevels.Length; i++)
+                {
+                    if (!mask[i] || Item.DepthLevels[i] == 0) continue;
+                    // Clamp first — depth may exceed max if MaxDepthLevels was reduced after painting
+                    var clamped = Math.Min(Item.DepthLevels[i], max);
+                    Item.DepthLevels[i] = (byte)(max + 1 - clamped);
+                }
+                break;
+        }
+
+        await Js.RenderDepthOverlayAsync("depth-canvas", Item.DepthLevels,
+            Item.DepthWidth, Item.DepthHeight, Settings.MaxDepthLevels);
+        await Js.RenderDepthLabelsAsync("depth-canvas", "depth-labels",
+            Item.DepthLevels, Item.DepthWidth, Item.DepthHeight);
         await OnChanged.InvokeAsync();
     }
 
     private void SetTool(PainterTool tool) { Painter.Tool = tool; StateHasChanged(); }
-    private void SelectLevel(byte level) { Painter.ActiveLevel = level; StateHasChanged(); }
     private string Active(PainterTool tool) => Painter.Tool == tool ? "active" : "";
-
-    /// <summary>Decode PNG bytes to flat RGBA using Mixel.Core.PngLoader (StbImageSharp).</summary>
-    private static byte[] ExtractRgba(byte[] pngBytes)
-    {
-        var img = Mixel.Core.PngLoader.Load(pngBytes);
-        var rgba = new byte[img.Pixels.Length * 4];
-        for (int i = 0; i < img.Pixels.Length; i++)
-        {
-            var p = img.Pixels[i];
-            rgba[i * 4]     = p.R;
-            rgba[i * 4 + 1] = p.G;
-            rgba[i * 4 + 2] = p.B;
-            rgba[i * 4 + 3] = p.A;
-        }
-        return rgba;
-    }
 
     public async ValueTask DisposeAsync()
     {
