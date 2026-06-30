@@ -63,13 +63,62 @@ body { background: var(--bg); color: var(--tx); font: 16px/1.5 var(--font-body);
      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0/28px 100%, var(--stage);
    position: relative; min-height: 0; }
 
-/* views wrapper — fills the stage, children layer via absolute positioning */
-.stage-views { position: relative; flex: 1; min-height: 0; overflow: hidden; }
-.stage-views > * { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* ---- stage main content (depth painter) ---- */
+.stage-content { position: absolute; inset: 0; z-index: 1; }
+.stage-content > * { width: 100%; height: 100%; }
 
-/* split: switch to grid, children become normal grid items */
-.stage-views.stage-split { display: grid; grid-template-columns: 1fr 1fr; position: static; }
-.stage-views.stage-split > * { position: static; inset: auto; width: 100%; height: 100%; }
+/* ---- 3D preview pip ---- */
+.preview-pip {
+    position: absolute;
+    z-index: 4;
+    bottom: 16px;
+    left: 16px;
+    width: 210px;
+    height: 210px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--bd);
+    box-shadow: 0 8px 32px rgba(0,0,0,.45);
+    background: var(--stage);
+    transition: box-shadow .2s;
+}
+.preview-pip:hover { box-shadow: 0 10px 36px rgba(0,0,0,.55); }
+.preview-pip.pip-expanded {
+    inset: 0;
+    width: auto; height: auto;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+}
+.preview-pip.pip-expanded:hover { box-shadow: none; }
+
+/* pip control buttons */
+.pip-btn {
+    position: absolute;
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    background: var(--panel);
+    border: 1px solid var(--bd);
+    color: var(--tx);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+    z-index: 5;
+    transition: border-color .12s, color .12s;
+}
+.pip-btn:hover { border-color: var(--acc); color: var(--acc); }
+
+/* expand: hidden until pip is hovered */
+.pip-btn-expand {
+    top: 8px; right: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s, border-color .12s, color .12s;
+}
+.preview-pip:hover .pip-btn-expand { opacity: 1; pointer-events: all; }
+
+/* collapse: always visible, docked bottom-left (mirrors pip home position) */
+.pip-btn-collapse { bottom: 14px; left: 14px; top: auto; right: auto; }
 
 .preview { width: 100%; height: 100%; --poster-color: transparent; }
 .hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--mut); pointer-events: none; font-size: 16px; }
@@ -111,8 +160,6 @@ body { background: var(--bg); color: var(--tx); font: 16px/1.5 var(--font-body);
 .tool-btn.active, .tool-btn:hover { background: var(--acc); color: var(--acc-tx); border-color: var(--acc); }
 .level-badge { display: inline-flex; align-items: center; height: 36px; padding: 0 10px; background: var(--acc); color: var(--acc-tx); border-radius: 8px; border: 1px solid var(--acc); font: 700 13px/1 var(--font-head); letter-spacing: .03em; }
 
-/* ---- stage controls ---- */
-.stage-controls { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; gap: 6px; }
 
 /* ---- context menu ---- */
 .ctx-menu { position: fixed; z-index: 9999; background: var(--panel); border: 1px solid var(--bd); border-radius: 10px; padding: 4px; box-shadow: 0 8px 28px rgba(0,0,0,.45); min-width: 196px; }

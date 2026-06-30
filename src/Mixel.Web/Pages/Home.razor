@@ -21,13 +21,13 @@
                OnSelectAll="SelectAll" OnDeselectAll="DeselectAll" />
 
     <section class="stage">
-        <div class="stage-views @(_sideBySide && _showPainter ? "stage-split" : "")">
-            @if (_settings.PerPixelMode && _showPainter)
-            {
+        @* Depth painter fills stage when in per-pixel mode and not expanded *@
+        @if (_settings.PerPixelMode && CurrentItem != null && !_previewExpanded)
+        {
+            <div class="stage-content">
                 <DepthPainter Item="CurrentItem" Settings="_settings" OnChanged="RegenAsync" />
-            }
-            <ModelPreview @ref="_preview" Hidden="@PainterOnly" />
-        </div>
+            </div>
+        }
 
         @if (_files.Count == 0) { <div class="hint">Add pixel art to begin</div> }
         @if (_notice is not null)
@@ -35,15 +35,26 @@
             <div class="notice">@_notice<button @onclick="() => _notice = null" aria-label="Dismiss">✕</button></div>
         }
 
-        <div class="stage-controls">
-            @if (_settings.PerPixelMode && CurrentItem != null)
+        @* Floating 3D preview pip — collapses to bottom-left, expands to full stage *@
+        <div class="preview-pip @(_previewExpanded ? "pip-expanded" : "")">
+            <ModelPreview @ref="_preview" />
+            @if (!_previewExpanded)
             {
-                <button class="icon-btn" data-test="toggle-view"
-                        title="@(_showPainter ? "Show 3D preview" : "Show painter")"
-                        @onclick="ToggleView">@(_showPainter ? "🎲" : "✏️")</button>
-                <button class="icon-btn @(_sideBySide ? "active" : "")" data-test="toggle-split"
-                        title="Side by side"
-                        @onclick="ToggleSplit">⬛</button>
+                <button class="pip-btn pip-btn-expand" @onclick="ExpandPreview" title="Expand 3D view">
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                        <path d="M8 1h4v4M5 12H1V8M12 1 7.5 5.5M5.5 7.5 1 12"
+                              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            }
+            else
+            {
+                <button class="pip-btn pip-btn-collapse" @onclick="CollapsePreview" title="Minimize to corner">
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                        <path d="M5 12H1V8M8 1h4v4M1 12l4.5-4.5M7.5 5.5 12 1"
+                              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
             }
         </div>
 
@@ -57,15 +68,10 @@
     private int _selected = -1;
     private ModelPreview? _preview;
     private string? _notice;
-    private bool _showPainter = true;
-    private bool _sideBySide = false;
+    private bool _previewExpanded = false;
 
     private int _selectedCount => _files.Count(f => f.Selected);
     private FileItem? CurrentItem => _selected >= 0 && _selected < _files.Count ? _files[_selected] : null;
-
-    // True when the painter occupies the stage alone and the 3D preview is hidden (display:none).
-    // Used to skip the expensive GLB rebuild while the preview isn't visible.
-    private bool PainterOnly => _settings.PerPixelMode && _showPainter && !_sideBySide;
 
     protected override async Task OnInitializedAsync()
     {
@@ -119,17 +125,13 @@
         await RegenAsync();
     }
 
-    // Toggling either view can reveal the 3D preview; regen so it reflects the latest depths
-    // (regen is skipped while the preview is hidden, so the model would otherwise be stale).
-    private async Task ToggleView() { _showPainter = !_showPainter; StateHasChanged(); await RegenAsync(); }
-    private async Task ToggleSplit() { _sideBySide = !_sideBySide; StateHasChanged(); await RegenAsync(); }
+    private void ExpandPreview() { _previewExpanded = true; StateHasChanged(); }
+    private void CollapsePreview() { _previewExpanded = false; StateHasChanged(); }
 
     private static void EnsureDepthLevels(FileItem? item)
     {
         if (item == null || item.DepthLevels != null) return;
         RgbaImage img;
-        // A non-PNG / corrupt upload must not crash the upload loop or the render
-        // cycle — leave the per-pixel buffers null and let the regen path report it.
         try { img = PngLoader.Load(item.Bytes); }
         catch (InvalidPngException) { return; }
         int w = img.Width, h = img.Height;
@@ -157,9 +159,6 @@
     private async Task RegenAsync()
     {
         if (_selected < 0 || _selected >= _files.Count || _preview is null) return;
-        // The preview is display:none in painter-only mode — don't rebuild the GLB on every
-        // brush stroke. ToggleView/ToggleSplit re-run this when the preview becomes visible.
-        if (PainterOnly) return;
         try
         {
             var item = CurrentItem;
@@ -169,7 +168,7 @@
             _notice = null;
         }
         catch (InvalidImageSizeException ex) { _notice = ex.Message; }
-        catch { /* invalid/empty image */ }
+        catch { }
         StateHasChanged();
     }
 
