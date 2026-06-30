@@ -15,6 +15,10 @@
             <span>＋ Add PNG(s)</span>
         </label>
         <button type="button" class="link-btn sample-btn" @onclick="OnLoadSample">Try sample →</button>
+        <label class="link-btn slicer-link">
+            <InputFile OnChange="OnSheetInput" accept=".png" />
+            <span>Slice a spritesheet →</span>
+        </label>
 
         @if (Items.Count > 0)
         {
@@ -62,8 +66,18 @@
     [Parameter] public EventCallback<int> OnToggle { get; set; }
     [Parameter] public EventCallback OnSelectAll { get; set; }
     [Parameter] public EventCallback OnDeselectAll { get; set; }
+    [Parameter] public EventCallback<(string name, byte[] bytes)> OnImportSpritesheet { get; set; }
 
     private bool _open = true;
+
+    private async Task OnSheetInput(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        using var ms = new MemoryStream();
+        await using var stream = file.OpenReadStream(maxAllowedSize: 64 * 1024 * 1024);
+        await stream.CopyToAsync(ms);
+        await OnImportSpritesheet.InvokeAsync((file.Name, ms.ToArray()));
+    }
 
     private async Task OnInput(InputFileChangeEventArgs e)
     {

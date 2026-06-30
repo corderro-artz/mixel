@@ -18,7 +18,8 @@
     <FilePanel Items="_files" SelectedPreview="_selected"
                OnUpload="HandleUpload" OnLoadSample="LoadSampleAsync"
                OnPreview="SelectAsync" OnToggle="ToggleAsync"
-               OnSelectAll="SelectAll" OnDeselectAll="DeselectAll" />
+               OnSelectAll="SelectAll" OnDeselectAll="DeselectAll"
+               OnImportSpritesheet="OpenSlicer" />
 
     <section class="stage">
         @* Depth painter fills stage when in per-pixel mode and not expanded *@
@@ -62,6 +63,13 @@
     </section>
 </div>
 
+@if (_sheetBytes is not null)
+{
+    <SlicerDialog SheetBytes="_sheetBytes" SheetName="_sheetName"
+                  AllowNonStandardSize="_settings.AllowNonStandardSize"
+                  OnExtract="OnSlicerExtract" OnClose="CloseSlicer" />
+}
+
 @code {
     private readonly ExtrudeSettings _settings = new();
     private List<FileItem> _files = new();
@@ -69,6 +77,8 @@
     private ModelPreview? _preview;
     private string? _notice;
     private bool _previewExpanded = false;
+    private byte[]? _sheetBytes;
+    private string _sheetName = "spritesheet.png";
 
     private int _selectedCount => _files.Count(f => f.Selected);
     private FileItem? CurrentItem => _selected >= 0 && _selected < _files.Count ? _files[_selected] : null;
@@ -127,6 +137,21 @@
 
     private void ExpandPreview() { _previewExpanded = true; StateHasChanged(); }
     private void CollapsePreview() { _previewExpanded = false; StateHasChanged(); }
+
+    private void OpenSlicer((string name, byte[] bytes) sheet)
+    {
+        _sheetName  = sheet.name;
+        _sheetBytes = sheet.bytes;
+        StateHasChanged();
+    }
+
+    private void CloseSlicer() { _sheetBytes = null; StateHasChanged(); }
+
+    private async Task OnSlicerExtract(IReadOnlyList<(string name, byte[] bytes)> sprites)
+    {
+        _sheetBytes = null;
+        await HandleUpload(sprites);
+    }
 
     private static void EnsureDepthLevels(FileItem? item)
     {
