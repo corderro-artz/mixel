@@ -15,13 +15,21 @@
 </TopBar>
 
 <div class="workspace">
-    <FilePanel Items="_files" SelectedPreview="_selected"
+    <FilePanel Items="_files" Sheets="_sheets" SelectedPreview="_selected"
                OnUpload="HandleUpload" OnLoadSample="LoadSampleAsync"
                OnPreview="SelectAsync" OnToggle="ToggleAsync"
                OnSelectAll="SelectAll" OnDeselectAll="DeselectAll"
-               OnImportSpritesheet="OpenSlicer" />
+               OnUploadSheet="HandleSheetUpload" OnSliceSheet="OpenSlicer" />
 
     <section class="stage">
+        @* Simple-mode image viewer — shows the selected sprite when pip is not fullscreen *@
+        @if (!_settings.PerPixelMode && CurrentItem != null && !_previewExpanded)
+        {
+            <div class="stage-content stage-image-view">
+                <img src="@GetImageDataUrl(CurrentItem)" class="stage-image" alt="@CurrentItem.Name" />
+            </div>
+        }
+
         @* Depth painter fills stage when in per-pixel mode and not expanded *@
         @if (_settings.PerPixelMode && CurrentItem != null && !_previewExpanded)
         {
@@ -73,6 +81,7 @@
 @code {
     private readonly ExtrudeSettings _settings = new();
     private List<FileItem> _files = new();
+    private List<SpritesheetItem> _sheets = new();
     private int _selected = -1;
     private ModelPreview? _preview;
     private string? _notice;
@@ -112,6 +121,12 @@
         await RegenAsync();
     }
 
+    private void HandleSheetUpload((string name, byte[] bytes) sheet)
+    {
+        _sheets.Add(new SpritesheetItem { Name = sheet.name, Bytes = sheet.bytes });
+        StateHasChanged();
+    }
+
     private async Task SelectAsync(int idx)
     {
         _selected = idx;
@@ -138,10 +153,10 @@
     private void ExpandPreview() { _previewExpanded = true; StateHasChanged(); }
     private void CollapsePreview() { _previewExpanded = false; StateHasChanged(); }
 
-    private void OpenSlicer((string name, byte[] bytes) sheet)
+    private void OpenSlicer(SpritesheetItem sheet)
     {
-        _sheetName  = sheet.name;
-        _sheetBytes = sheet.bytes;
+        _sheetName  = sheet.Name;
+        _sheetBytes = sheet.Bytes;
         StateHasChanged();
     }
 
@@ -152,6 +167,9 @@
         _sheetBytes = null;
         await HandleUpload(sprites);
     }
+
+    private static string GetImageDataUrl(FileItem item)
+        => $"data:image/png;base64,{Convert.ToBase64String(item.Bytes)}";
 
     private static void EnsureDepthLevels(FileItem? item)
     {

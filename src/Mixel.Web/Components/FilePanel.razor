@@ -5,7 +5,7 @@
     @if (_open)
     {
         <div class="filepanel-head">
-            <span class="filepanel-title">Files</span>
+            <span class="filepanel-title">Sprites</span>
             <button type="button" class="icon-btn" aria-label="Collapse files"
                     @onclick="() => _open = false">◂</button>
         </div>
@@ -15,10 +15,6 @@
             <span>＋ Add PNG(s)</span>
         </label>
         <button type="button" class="link-btn sample-btn" @onclick="OnLoadSample">Try sample →</button>
-        <label class="link-btn slicer-link">
-            <InputFile OnChange="OnSheetInput" accept=".png" />
-            <span>Slice a spritesheet →</span>
-        </label>
 
         @if (Items.Count > 0)
         {
@@ -47,7 +43,37 @@
         }
         else
         {
-            <p class="filepanel-empty">No files yet. Add PNGs to begin.</p>
+            <p class="filepanel-empty">No sprites yet.</p>
+        }
+
+        <div class="filepanel-divider"></div>
+
+        <div class="filepanel-section-head">
+            <span class="filepanel-title">Spritesheets</span>
+        </div>
+
+        <label class="upload-btn">
+            <InputFile OnChange="OnSheetInput" accept=".png" />
+            <span>＋ Add Spritesheet</span>
+        </label>
+
+        @if (Sheets.Count > 0)
+        {
+            <ul class="filelist">
+                @foreach (var sheet in Sheets)
+                {
+                    var s = sheet;
+                    <li>
+                        <span class="file-name" title="@s.Name">@s.Name</span>
+                        <button type="button" class="link-btn slice-btn"
+                                @onclick="() => OnSliceSheet.InvokeAsync(s)">Slice →</button>
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p class="filepanel-empty">Upload a PNG spritesheet to slice into sprites.</p>
         }
     }
     else
@@ -59,6 +85,7 @@
 
 @code {
     [Parameter] public List<FileItem> Items { get; set; } = new();
+    [Parameter] public List<SpritesheetItem> Sheets { get; set; } = new();
     [Parameter] public int SelectedPreview { get; set; } = -1;
     [Parameter] public EventCallback<IReadOnlyList<(string name, byte[] bytes)>> OnUpload { get; set; }
     [Parameter] public EventCallback OnLoadSample { get; set; }
@@ -66,7 +93,8 @@
     [Parameter] public EventCallback<int> OnToggle { get; set; }
     [Parameter] public EventCallback OnSelectAll { get; set; }
     [Parameter] public EventCallback OnDeselectAll { get; set; }
-    [Parameter] public EventCallback<(string name, byte[] bytes)> OnImportSpritesheet { get; set; }
+    [Parameter] public EventCallback<(string name, byte[] bytes)> OnUploadSheet { get; set; }
+    [Parameter] public EventCallback<SpritesheetItem> OnSliceSheet { get; set; }
 
     private bool _open = true;
 
@@ -76,7 +104,7 @@
         using var ms = new MemoryStream();
         await using var stream = file.OpenReadStream(maxAllowedSize: 64 * 1024 * 1024);
         await stream.CopyToAsync(ms);
-        await OnImportSpritesheet.InvokeAsync((file.Name, ms.ToArray()));
+        await OnUploadSheet.InvokeAsync((file.Name, ms.ToArray()));
     }
 
     private async Task OnInput(InputFileChangeEventArgs e)
