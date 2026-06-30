@@ -65,7 +65,7 @@
 
 @if (_sheetBytes is not null)
 {
-    <SlicerDialog SheetBytes="_sheetBytes" SheetName="_sheetName"
+    <SlicerDialog SheetBytes="_sheetBytes" SheetName="@_sheetName"
                   AllowNonStandardSize="_settings.AllowNonStandardSize"
                   OnExtract="OnSlicerExtract" OnClose="CloseSlicer" />
 }
