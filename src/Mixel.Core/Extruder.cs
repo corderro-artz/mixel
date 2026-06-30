@@ -25,8 +25,8 @@ public static class Extruder
         }
         var tex  = TextureBaker.BakePng(img, mask);
         var mesh = o.DepthMap is not null
-            ? MeshBuilder.BuildFromDepthMap(o.DepthMap, o.VoxelSize, o.Pivot)
-            : MeshBuilder.Build(mask, o.Depth, o.VoxelSize, o.Pivot);
+            ? MeshBuilder.BuildFromDepthMap(o.DepthMap, o.VoxelSize, o.Pivot, o.Mode)
+            : MeshBuilder.Build(mask, o.Depth, o.VoxelSize, o.Pivot, o.Mode);
         return (mesh, tex);
     }
 

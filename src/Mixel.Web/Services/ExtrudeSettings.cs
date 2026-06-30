@@ -11,6 +11,7 @@ public sealed class ExtrudeSettings
     public bool AllowNonStandardSize { get; set; } = false;
     public bool PerPixelMode   { get; set; } = false;
     public int  MaxDepthLevels { get; set; } = 16;
+    public ExtrudeMode ExtrudeMode { get; set; } = ExtrudeMode.Front;
 
     public ExtrudeOptions ToOptions(byte[] png) => new()
     {
@@ -20,6 +21,7 @@ public sealed class ExtrudeSettings
         Format = Format,
         Pivot = Pivot,
         AllowNonStandardSize = AllowNonStandardSize,
+        Mode = ExtrudeMode,
     };
 
     public ExtrudeOptions ToOptions(byte[] png, FileItem? item)
@@ -33,6 +35,7 @@ public sealed class ExtrudeSettings
                 Format = Format,
                 Pivot = Pivot,
                 AllowNonStandardSize = AllowNonStandardSize,
+                Mode = ExtrudeMode,
                 DepthMap = new DepthMap
                 {
                     Width   = item.DepthWidth,

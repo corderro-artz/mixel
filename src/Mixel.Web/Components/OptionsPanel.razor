@@ -60,6 +60,21 @@
     </div>
 
     <div class="field">
+        <label>Extrusion</label>
+        <div class="radios" data-test="extrusion">
+            @foreach (var (val, text) in ExtrusionModes)
+            {
+                <label class="radio">
+                    <input type="radio" name="extrusion" value="@val"
+                           checked="@(Settings.ExtrudeMode == ParseExtrudeMode(val))"
+                           @onchange="@(() => Step(() => Settings.ExtrudeMode = ParseExtrudeMode(val)))" />
+                    <span>@text</span>
+                </label>
+            }
+        </div>
+    </div>
+
+    <div class="field">
         <label>Pivot</label>
         <div class="radios" data-test="pivot">
             @foreach (var (val, text) in Pivots)
@@ -98,6 +113,11 @@
         ("Glb", "glb"), ("Gltf", "gltf"), ("GltfEmbedded", "gltf-embedded"),
     };
 
+    private static readonly (string val, string text)[] ExtrusionModes =
+    {
+        ("Front", "front"), ("Symmetric", "symmetric"), ("Raised", "raised"),
+    };
+
     private static readonly (string val, string text)[] Pivots =
     {
         ("BottomCenter", "bottom-center"), ("Center", "center"), ("MinCorner", "min-corner"),
@@ -110,6 +130,13 @@
         "Gltf" => GltfFormat.Gltf,
         "GltfEmbedded" => GltfFormat.GltfEmbedded,
         _ => GltfFormat.Glb,
+    };
+
+    public static ExtrudeMode ParseExtrudeMode(string? s) => s switch
+    {
+        "Symmetric" => ExtrudeMode.Symmetric,
+        "Raised"    => ExtrudeMode.Raised,
+        _           => ExtrudeMode.Front,
     };
 
     public static Pivot ParsePivot(string? s) => s switch

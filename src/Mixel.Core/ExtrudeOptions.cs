@@ -14,4 +14,6 @@ public sealed record ExtrudeOptions
 
     /// <summary>When non-null, activates per-pixel depth mode. Overrides <see cref="Depth"/>.</summary>
     public DepthMap? DepthMap { get; init; } = null;
+
+    public ExtrudeMode Mode { get; init; } = ExtrudeMode.Front;
 }
