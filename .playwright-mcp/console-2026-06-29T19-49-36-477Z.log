@@ -1,0 +1,23 @@
+[     601ms] [INFO] Debugging hotkey: Shift+Alt+D (when application has focus) @ http://localhost:5036/_framework/blazor.webassembly.958z1vx7fr.js:0
+[    1126ms] [LOG] [$updateSource] called! 
+src: null
+extraUrls: 
+loaded: false @ http://localhost:5036/lib/model-viewer.min.js:1035
+[    1126ms] [LOG] [$updateSource] BAILING OUT EARLY! @ http://localhost:5036/lib/model-viewer.min.js:1035
+[    1153ms] [LOG] IntersectionObserver fired! isIntersecting: true @ http://localhost:5036/lib/model-viewer.min.js:1035
+[    1153ms] [LOG] [$updateSource] called! 
+src: null
+extraUrls: 
+loaded: false @ http://localhost:5036/lib/model-viewer.min.js:1035
+[    1153ms] [LOG] [$updateSource] BAILING OUT EARLY! @ http://localhost:5036/lib/model-viewer.min.js:1035
+[   15572ms] [LOG] [$updateSource] called! 
+src: null
+extraUrls: 
+loaded: false @ http://localhost:5036/lib/model-viewer.min.js:1035
+[   15572ms] [LOG] [$updateSource] BAILING OUT EARLY! @ http://localhost:5036/lib/model-viewer.min.js:1035
+[   15574ms] [LOG] IntersectionObserver fired! isIntersecting: true @ http://localhost:5036/lib/model-viewer.min.js:1035
+[   15574ms] [LOG] [$updateSource] called! 
+src: null
+extraUrls: 
+loaded: false @ http://localhost:5036/lib/model-viewer.min.js:1035
+[   15574ms] [LOG] [$updateSource] BAILING OUT EARLY! @ http://localhost:5036/lib/model-viewer.min.js:1035
