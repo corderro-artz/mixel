@@ -113,6 +113,7 @@ window.mixel = {
 
   // ---- context menus ----
   _ctxMenu: null,
+  _ctxDismiss: null,
 
   _showMenu: function (x, y, items, onAction) {
     window.mixel._hideMenu();
@@ -133,11 +134,21 @@ window.mixel = {
     });
     document.body.appendChild(menu);
     window.mixel._ctxMenu = menu;
-    document.addEventListener('pointerdown', window.mixel._hideMenu, { once: true });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.mixel._hideMenu(); }, { once: true });
+    // Keep named refs so _hideMenu can remove them. The previous { once: true }
+    // keydown listener leaked whenever the menu was dismissed by clicking (its
+    // handler never fired, so it was never auto-removed) — one per menu open.
+    const onDocDown = () => window.mixel._hideMenu();
+    const onKeyDown = (e) => { if (e.key === 'Escape') window.mixel._hideMenu(); };
+    window.mixel._ctxDismiss = () => {
+      document.removeEventListener('pointerdown', onDocDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+    document.addEventListener('pointerdown', onDocDown);
+    document.addEventListener('keydown', onKeyDown);
   },
 
   _hideMenu: function () {
+    if (window.mixel._ctxDismiss) { window.mixel._ctxDismiss(); window.mixel._ctxDismiss = null; }
     if (window.mixel._ctxMenu) { window.mixel._ctxMenu.remove(); window.mixel._ctxMenu = null; }
   },
 
