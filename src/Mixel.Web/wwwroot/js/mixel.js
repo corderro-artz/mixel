@@ -212,4 +212,118 @@ window.mixel = {
     return new Uint8Array(await r.arrayBuffer());
   },
 
+  // ---- spritesheet slicer ----
+  _paintSlicer: function (overlay, liveRect) {
+    if (!overlay || !overlay.__mixelNat) return;
+    const { w, h } = overlay.__mixelNat;
+    const ctx = overlay.getContext("2d");
+    ctx.clearRect(0, 0, overlay.width, overlay.height);
+    const sX = overlay.width / w, sY = overlay.height / h;
+    ctx.font = "bold 12px monospace";
+    ctx.textBaseline = "top";
+    const one = (rg, withLabel) => {
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(255,255,255,0.95)";
+      ctx.strokeRect(rg.x * sX + 1, rg.y * sY + 1, rg.w * sX - 2, rg.h * sY - 2);
+      if (withLabel && rg.name != null) {
+        const tw = ctx.measureText(rg.name).width + 8;
+        ctx.fillStyle = "rgba(0,0,0,0.75)";
+        ctx.fillRect(rg.x * sX + 1, rg.y * sY + 1, tw, 16);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(rg.name, rg.x * sX + 5, rg.y * sY + 3);
+      }
+    };
+    for (const rg of (overlay.__mixelRegions || [])) one(rg, true);
+    if (liveRect) one(liveRect, false);
+  },
+
+  initSlicer: function (baseId, overlayId, rgbaBytes, w, h, dotNetRef) {
+    const base = document.getElementById(baseId);
+    const overlay = document.getElementById(overlayId);
+    if (!base || !overlay) return;
+
+    base.width = w; base.height = h;
+    const wrap = base.closest(".slicer-canvas-wrap") || base.parentElement;
+    let scale = 1;
+    if (wrap) {
+      const availW = wrap.clientWidth - 32;
+      const availH = wrap.clientHeight - 32;
+      scale = Math.max(1, Math.min(Math.floor(availW / w), Math.floor(availH / h)));
+    }
+    const dispW = w * scale, dispH = h * scale;
+    base.style.width = dispW + "px";
+    base.style.height = dispH + "px";
+
+    const bctx = base.getContext("2d");
+    const imageData = bctx.createImageData(w, h);
+    for (let i = 0; i < rgbaBytes.length; i++) imageData.data[i] = rgbaBytes[i];
+    bctx.putImageData(imageData, 0, 0);
+
+    overlay.width = dispW; overlay.height = dispH;
+    overlay.style.width = dispW + "px";
+    overlay.style.height = dispH + "px";
+    overlay.__mixelNat = { w, h };
+    overlay.__mixelRegions = [];
+
+    const toPixel = (e) => {
+      const r = overlay.getBoundingClientRect();
+      let x = Math.floor((e.clientX - r.left) / r.width  * w);
+      let y = Math.floor((e.clientY - r.top)  / r.height * h);
+      x = Math.max(0, Math.min(w - 1, x));
+      y = Math.max(0, Math.min(h - 1, y));
+      return { x, y };
+    };
+
+    let dragging = false, sx = 0, sy = 0;
+    const norm = (px, py) => ({
+      x: Math.min(sx, px), y: Math.min(sy, py),
+      w: Math.abs(px - sx) + 1, h: Math.abs(py - sy) + 1,
+    });
+
+    const onDown = (e) => {
+      dragging = true;
+      overlay.setPointerCapture(e.pointerId);
+      const p = toPixel(e); sx = p.x; sy = p.y;
+    };
+    const onMove = (e) => {
+      if (!dragging) return;
+      const p = toPixel(e);
+      window.mixel._paintSlicer(overlay, norm(p.x, p.y));
+    };
+    const onUp = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      const p = toPixel(e);
+      const r = norm(p.x, p.y);
+      if (r.x + r.w > w) r.w = w - r.x;
+      if (r.y + r.h > h) r.h = h - r.y;
+      window.mixel._paintSlicer(overlay, null);
+      dotNetRef.invokeMethodAsync("OnRegionDrawn", r.x, r.y, r.w, r.h);
+    };
+
+    overlay.addEventListener("pointerdown", onDown);
+    overlay.addEventListener("pointermove", onMove);
+    overlay.addEventListener("pointerup", onUp);
+    overlay.__mixelSlicerCleanup = () => {
+      overlay.removeEventListener("pointerdown", onDown);
+      overlay.removeEventListener("pointermove", onMove);
+      overlay.removeEventListener("pointerup", onUp);
+    };
+  },
+
+  renderSlicerRegions: function (overlayId, regions) {
+    const overlay = document.getElementById(overlayId);
+    if (!overlay) return;
+    overlay.__mixelRegions = regions || [];
+    window.mixel._paintSlicer(overlay, null);
+  },
+
+  disposeSlicer: function (overlayId) {
+    const overlay = document.getElementById(overlayId);
+    if (!overlay) return;
+    if (overlay.__mixelSlicerCleanup) { overlay.__mixelSlicerCleanup(); overlay.__mixelSlicerCleanup = null; }
+    overlay.__mixelRegions = null;
+    overlay.__mixelNat = null;
+  },
+
 };

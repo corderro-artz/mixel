@@ -40,4 +40,10 @@ public sealed class MixelJs
 
     public ValueTask ListenModelContextMenuAsync(ElementReference el)
         => _js.InvokeVoidAsync("mixel.listenModelContextMenu", el);
+
+    public ValueTask RenderSlicerRegionsAsync(string overlayId, object regions)
+        => _js.InvokeVoidAsync("mixel.renderSlicerRegions", overlayId, regions);
+
+    public ValueTask DisposeSlicerAsync(string overlayId)
+        => _js.InvokeVoidAsync("mixel.disposeSlicer", overlayId);
 }
