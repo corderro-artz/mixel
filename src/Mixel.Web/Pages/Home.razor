@@ -22,16 +22,7 @@
                OnUploadSheet="HandleSheetUpload" OnSliceSheet="OpenSlicer" />
 
     <section class="stage">
-        @* Simple-mode image viewer — shows the selected sprite when pip is not fullscreen *@
-        @if (!_settings.PerPixelMode && CurrentItem != null && !_previewExpanded)
-        {
-            <div class="stage-content stage-image-view">
-                <img src="@GetImageDataUrl(CurrentItem)" class="stage-image" alt="@CurrentItem.Name" />
-            </div>
-        }
-
-        @* Depth painter fills stage when in per-pixel mode and not expanded *@
-        @if (_settings.PerPixelMode && CurrentItem != null && !_previewExpanded)
+        @if (CurrentItem != null && !_previewExpanded)
         {
             <div class="stage-content">
                 <DepthPainter Item="CurrentItem" Settings="_settings" OnChanged="RegenAsync" />
@@ -116,8 +107,7 @@
         foreach (var (name, bytes) in files)
             _files.Add(new FileItem { Name = name, Bytes = bytes });
         if (wasEmpty && _files.Count > 0) _selected = 0;
-        if (_settings.PerPixelMode)
-            foreach (var f in _files) EnsureDepthLevels(f);
+        foreach (var f in _files) EnsureDepthLevels(f);
         await RegenAsync();
     }
 
@@ -130,7 +120,7 @@
     private async Task SelectAsync(int idx)
     {
         _selected = idx;
-        if (_settings.PerPixelMode) EnsureDepthLevels(CurrentItem);
+        EnsureDepthLevels(CurrentItem);
         await RegenAsync();
     }
 
@@ -146,7 +136,7 @@
 
     private async Task OnSettingsChanged()
     {
-        if (_settings.PerPixelMode) EnsureDepthLevels(CurrentItem);
+        EnsureDepthLevels(CurrentItem);
         await RegenAsync();
     }
 
@@ -167,9 +157,6 @@
         _sheetBytes = null;
         await HandleUpload(sprites);
     }
-
-    private static string GetImageDataUrl(FileItem item)
-        => $"data:image/png;base64,{Convert.ToBase64String(item.Bytes)}";
 
     private static void EnsureDepthLevels(FileItem? item)
     {
@@ -206,7 +193,8 @@
         {
             var item = CurrentItem;
             if (item is null) return;
-            var glb = ExtrusionService.PreviewGlb(item.Bytes, _settings, item);
+            var previewOpts = _settings.ToOptions(item.Bytes, item) with { Format = GltfFormat.Glb, AllowNonStandardSize = true };
+            var glb = Extruder.ExtrudeGlb(previewOpts);
             await _preview.ShowAsync(glb);
             _notice = null;
         }

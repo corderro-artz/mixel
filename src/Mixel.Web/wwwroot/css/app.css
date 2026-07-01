@@ -211,10 +211,6 @@ body { background: var(--bg); color: var(--tx); font: 16px/1.5 var(--font-body);
     inset: calc(20vh + 3.25rem) 0 auto 0.2rem;
 }
 .loading-progress-text:after { content: var(--blazor-load-percentage-text, "Loading"); }
-/* ---- stage simple image viewer ---- */
-.stage-image-view { display: flex; align-items: center; justify-content: center; }
-.stage-image { image-rendering: pixelated; image-rendering: crisp-edges;
-    max-width: calc(100% - 32px); max-height: calc(100% - 32px); object-fit: contain; }
 
 /* ---- file panel: divider + spritesheet section ---- */
 .filepanel-divider { border: none; border-top: 1px solid var(--bd); margin: 14px 0; }
