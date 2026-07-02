@@ -11,11 +11,9 @@
                 @onclick="@(()=>SetTool(PainterTool.Paint))">✏️</button>
         <button class="tool-btn @Active(PainterTool.Fill)"    data-test="tool-fill"
                 @onclick="@(()=>SetTool(PainterTool.Fill))">🪣</button>
-        <button class="tool-btn @Active(PainterTool.Eyedrop)" data-test="tool-eyedrop"
-                @onclick="@(()=>SetTool(PainterTool.Eyedrop))">🔍</button>
         <button class="tool-btn @Active(PainterTool.Erase)"   data-test="tool-erase"
                 @onclick="@(()=>SetTool(PainterTool.Erase))">✕</button>
-        @if (Painter.Tool == PainterTool.Fill || Painter.Tool == PainterTool.Eyedrop)
+        @if (Painter.Tool == PainterTool.Fill)
         {
             <span class="level-badge" data-test="level-badge">Lv @Painter.ActiveLevel</span>
         }
@@ -26,9 +24,11 @@
         <p class="depth-mode-hint">Painted depths ignored in Simple mode — switch to Per-pixel to use them.</p>
     }
 
-    <div class="depth-canvas-wrap">
-        <canvas id="depth-canvas" class="depth-canvas" data-test="depth-canvas"></canvas>
-        <canvas id="depth-labels" class="depth-labels"></canvas>
+    <div class="depth-canvas-center">
+        <div class="depth-canvas-wrap">
+            <canvas id="depth-canvas" class="depth-canvas" data-test="depth-canvas"></canvas>
+            <canvas id="depth-labels" class="depth-labels"></canvas>
+        </div>
     </div>
 </div>
 
@@ -47,8 +47,7 @@
         if (firstRender)
         {
             _self = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync("mixel.listenCanvasInput",   "depth-canvas", _self);
-            await JSRuntime.InvokeVoidAsync("mixel.listenContextMenu",   "depth-canvas", _self);
+            await JSRuntime.InvokeVoidAsync("mixel.listenCanvasInput", "depth-canvas", _self);
         }
         if (Item?.DepthLevels != null && Item.RgbaBytes != null && !_canvasReady)
         {
@@ -73,48 +72,34 @@
     {
         if (Item?.DepthLevels == null) return;
         var mask = Item.SolidMask ?? Item.DepthLevels.Select(l => l != 0).ToArray();
-        bool changed = Painter.Tool == PainterTool.Paint
-            ? Painter.CycleLevel(Item.DepthLevels, mask, Item.DepthWidth, Item.DepthHeight, x, y, Settings.MaxDepthLevels)
-            : Painter.Apply(Item.DepthLevels, mask, Item.DepthWidth, Item.DepthHeight, x, y);
-        if (!changed) return;
-        await Js.RenderDepthOverlayAsync("depth-canvas", Item.DepthLevels,
-            Item.DepthWidth, Item.DepthHeight, Settings.MaxDepthLevels);
-        await Js.RenderDepthLabelsAsync("depth-canvas", "depth-labels",
-            Item.DepthLevels, Item.DepthWidth, Item.DepthHeight);
-        await OnChanged.InvokeAsync();
-    }
+        bool changed = false;
 
-    [JSInvokable]
-    public async Task OnContextAction(string action)
-    {
-        if (Item?.DepthLevels == null) return;
-        var mask = Item.SolidMask ?? Item.DepthLevels.Select(l => l != 0).ToArray();
-        byte max = (byte)Settings.MaxDepthLevels;
-
-        switch (action)
+        if (Painter.Tool == PainterTool.Paint)
         {
-            case "reset-to-one":
-                for (int i = 0; i < Item.DepthLevels.Length; i++)
-                    if (mask[i]) Item.DepthLevels[i] = 1;
-                break;
-            case "erase-all":
-                Array.Clear(Item.DepthLevels, 0, Item.DepthLevels.Length);
-                break;
-            case "fill-all":
-                for (int i = 0; i < Item.DepthLevels.Length; i++)
-                    if (mask[i]) Item.DepthLevels[i] = Painter.ActiveLevel;
-                break;
-            case "invert":
-                for (int i = 0; i < Item.DepthLevels.Length; i++)
-                {
-                    if (!mask[i] || Item.DepthLevels[i] == 0) continue;
-                    // Clamp first — depth may exceed max if MaxDepthLevels was reduced after painting
-                    var clamped = Math.Min(Item.DepthLevels[i], max);
-                    Item.DepthLevels[i] = (byte)(max + 1 - clamped);
-                }
-                break;
+            changed = buttons == 2
+                ? Painter.DecreaseLevel(Item.DepthLevels, mask, Item.DepthWidth, Item.DepthHeight, x, y)
+                : Painter.CycleLevel(Item.DepthLevels, mask, Item.DepthWidth, Item.DepthHeight, x, y, Settings.MaxDepthLevels);
+        }
+        else if (Painter.Tool == PainterTool.Fill)
+        {
+            if (buttons == 2)
+            {
+                int idx = y * Item.DepthWidth + x;
+                if (idx >= 0 && idx < Item.DepthLevels.Length && Item.DepthLevels[idx] > 0)
+                    Painter.ActiveLevel = Item.DepthLevels[idx];
+                StateHasChanged();
+                return;
+            }
+            if (Item.RgbaBytes != null)
+                changed = Painter.ColorFill(Item.DepthLevels, mask, Item.RgbaBytes,
+                    Item.DepthWidth, Item.DepthHeight, x, y);
+        }
+        else // Erase
+        {
+            changed = Painter.Apply(Item.DepthLevels, mask, Item.DepthWidth, Item.DepthHeight, x, y);
         }
 
+        if (!changed) return;
         await Js.RenderDepthOverlayAsync("depth-canvas", Item.DepthLevels,
             Item.DepthWidth, Item.DepthHeight, Settings.MaxDepthLevels);
         await Js.RenderDepthLabelsAsync("depth-canvas", "depth-labels",

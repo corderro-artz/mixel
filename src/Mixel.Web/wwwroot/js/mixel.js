@@ -29,12 +29,12 @@ window.mixel = {
     if (!canvas) return;
     canvas.width = w;
     canvas.height = h;
-    // Scale to fill the painter container (skip canvas-wrap which has no intrinsic size yet)
+    const center = canvas.closest('.depth-canvas-center');
     const parent = canvas.closest('.depth-painter') || canvas.parentElement;
-    if (parent) {
-      // 56px top padding + ~44px toolbar row + 8px gap + 8px bottom padding = ~116px overhead
-      const availW = parent.clientWidth  - 16;
-      const availH = parent.clientHeight - 116;
+    const sizer  = center || parent;
+    if (sizer) {
+      const availW = sizer.clientWidth  - 16;
+      const availH = sizer.clientHeight - 16;
       const scale  = Math.max(1, Math.min(Math.floor(availW / w), Math.floor(availH / h)));
       canvas.style.width  = (w * scale) + 'px';
       canvas.style.height = (h * scale) + 'px';
@@ -192,6 +192,7 @@ window.mixel = {
       return { x, y };
     };
     canvas.__mixelDown = false;
+    canvas.addEventListener("contextmenu", (e) => e.preventDefault());
     canvas.addEventListener("pointerdown", (e) => {
       canvas.__mixelDown = true;
       canvas.setPointerCapture(e.pointerId);
