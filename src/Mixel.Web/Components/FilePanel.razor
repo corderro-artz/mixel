@@ -84,8 +84,8 @@
 </aside>
 
 @code {
-    [Parameter] public List<FileItem> Items { get; set; } = new();
-    [Parameter] public List<SpritesheetItem> Sheets { get; set; } = new();
+    [Parameter] public IReadOnlyList<FileItem> Items { get; set; } = [];
+    [Parameter] public IReadOnlyList<SpritesheetItem> Sheets { get; set; } = [];
     [Parameter] public int SelectedPreview { get; set; } = -1;
     [Parameter] public EventCallback<IReadOnlyList<(string name, byte[] bytes)>> OnUpload { get; set; }
     [Parameter] public EventCallback OnLoadSample { get; set; }

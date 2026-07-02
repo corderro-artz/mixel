@@ -13,5 +13,6 @@ public sealed class DepthMap
         => x >= 0 && y >= 0 && x < Width && y < Height
             ? Levels[y * Width + x] : (byte)0;
 
-    public int MaxLevel => Levels.Length == 0 ? 0 : Levels.Max();
+    private int? _maxLevel;
+    public int MaxLevel => _maxLevel ??= Levels.Length == 0 ? 0 : Levels.Max();
 }

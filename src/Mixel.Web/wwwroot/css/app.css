@@ -250,8 +250,6 @@ body { background: var(--bg); color: var(--tx); font: 16px/1.5 var(--font-body);
 .slicer-size { font: 600 11px/1 var(--font-head); color: var(--mut); font-variant-numeric: tabular-nums; }
 .slicer-size.nonstandard { color: var(--acc); }
 .slicer-confirm { width: 100%; }
-.slicer-link { display: inline-block; position: relative; margin-top: 8px; cursor: pointer; font-size: 12px; }
-.slicer-link input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 
 .blazor-error-boundary { background: var(--acc); color: var(--acc-tx); padding: 12px 16px; }
 .blazor-error-boundary::after { content: "An error has occurred."; }

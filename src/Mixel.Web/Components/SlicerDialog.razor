@@ -69,6 +69,7 @@
     private string? _notice;
     private DotNetObjectReference<SlicerDialog>? _self;
     private bool _canvasReady;
+    private record SlicerRegionPayload(int x, int y, int w, int h, string name);
 
     protected override void OnInitialized()
     {
@@ -104,7 +105,7 @@
     private async Task RenderRegionsAsync()
     {
         var payload = _state.Regions
-            .Select(r => new { x = r.Rect.X, y = r.Rect.Y, w = r.Rect.Width, h = r.Rect.Height, name = r.Name })
+            .Select(r => new SlicerRegionPayload(r.Rect.X, r.Rect.Y, r.Rect.Width, r.Rect.Height, r.Name))
             .ToArray();
         await Js.RenderSlicerRegionsAsync("slicer-overlay-canvas", payload);
     }
@@ -130,7 +131,7 @@
         await OnExtract.InvokeAsync(_state.BuildExtract(_image));
     }
 
-    private async Task CloseAsync() => await OnClose.InvokeAsync();
+    private Task CloseAsync() => OnClose.InvokeAsync();
 
     private static byte[] ToRgbaBytes(RgbaImage img)
     {

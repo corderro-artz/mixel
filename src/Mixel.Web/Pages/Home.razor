@@ -15,7 +15,7 @@
 </TopBar>
 
 <div class="workspace">
-    <FilePanel Items="_files" Sheets="_sheets" SelectedPreview="_selected"
+    <FilePanel Items="_files" Sheets="_sheets" SelectedPreview="_previewIdx"
                OnUpload="HandleUpload" OnLoadSample="LoadSampleAsync"
                OnPreview="SelectAsync" OnToggle="ToggleAsync"
                OnSelectAll="SelectAll" OnDeselectAll="DeselectAll"
@@ -73,7 +73,7 @@
     private readonly ExtrudeSettings _settings = new();
     private List<FileItem> _files = new();
     private List<SpritesheetItem> _sheets = new();
-    private int _selected = -1;
+    private int _previewIdx = -1;
     private ModelPreview? _preview;
     private string? _notice;
     private bool _previewExpanded = false;
@@ -81,7 +81,7 @@
     private string _sheetName = "spritesheet.png";
 
     private int _selectedCount => _files.Count(f => f.Selected);
-    private FileItem? CurrentItem => _selected >= 0 && _selected < _files.Count ? _files[_selected] : null;
+    private FileItem? CurrentItem => _previewIdx >= 0 && _previewIdx < _files.Count ? _files[_previewIdx] : null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -92,7 +92,7 @@
     private async void OnThemeChanged()
     {
         try { await Js.SetThemeAttributeAsync(Theme.CurrentId); await InvokeAsync(StateHasChanged); }
-        catch (Exception) { }
+        catch (Exception ex) { Console.Error.WriteLine(ex); }
     }
 
     private async Task LoadSampleAsync()
@@ -104,10 +104,11 @@
     private async Task HandleUpload(IReadOnlyList<(string name, byte[] bytes)> files)
     {
         bool wasEmpty = _files.Count == 0;
+        int firstNew = _files.Count;
         foreach (var (name, bytes) in files)
             _files.Add(new FileItem { Name = name, Bytes = bytes });
-        if (wasEmpty && _files.Count > 0) _selected = 0;
-        foreach (var f in _files) EnsureDepthLevels(f);
+        if (wasEmpty && _files.Count > 0) _previewIdx = 0;
+        foreach (var f in _files.Skip(firstNew)) EnsureDepthLevels(f);
         await RegenAsync();
     }
 
@@ -119,7 +120,7 @@
 
     private async Task SelectAsync(int idx)
     {
-        _selected = idx;
+        _previewIdx = idx;
         EnsureDepthLevels(CurrentItem);
         await RegenAsync();
     }
@@ -188,7 +189,7 @@
 
     private async Task RegenAsync()
     {
-        if (_selected < 0 || _selected >= _files.Count || _preview is null) return;
+        if (_previewIdx < 0 || _previewIdx >= _files.Count || _preview is null) return;
         try
         {
             var item = CurrentItem;

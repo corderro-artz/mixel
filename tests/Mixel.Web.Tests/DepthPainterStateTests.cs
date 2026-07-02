@@ -27,27 +27,6 @@ public class DepthPainterStateTests
         return rgba;
     }
 
-    // ----- Paint / Apply -----
-
-    [Fact]
-    public void Paint_SetActiveLevel_AtPixel()
-    {
-        var (levels, solid, w, h) = Grid3x3();
-        var state = new DepthPainterState { Tool = PainterTool.Paint, ActiveLevel = 5 };
-        bool changed = state.Apply(levels, solid, w, h, 0, 0);
-        Assert.True(changed);
-        Assert.Equal(5, levels[0]);
-    }
-
-    [Fact]
-    public void Paint_SameLevel_NoChange()
-    {
-        var (levels, solid, w, h) = Grid3x3();
-        var state = new DepthPainterState { Tool = PainterTool.Paint, ActiveLevel = 1 };
-        bool changed = state.Apply(levels, solid, w, h, 0, 0);
-        Assert.False(changed);
-    }
-
     [Fact]
     public void Paint_AirPixel_IsNoop()
     {

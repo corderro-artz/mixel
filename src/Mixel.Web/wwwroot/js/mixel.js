@@ -46,7 +46,7 @@ window.mixel = {
     canvas.__mixelPng = imageData;
   },
 
-  renderDepthOverlay: function (id, levels, w, h, maxDepth) {
+  renderDepthOverlay: function (id, levels, w, h) {
     const canvas = document.getElementById(id);
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -152,20 +152,6 @@ window.mixel = {
     if (window.mixel._ctxMenu) { window.mixel._ctxMenu.remove(); window.mixel._ctxMenu = null; }
   },
 
-  listenContextMenu: function (id, dotNetRef) {
-    const canvas = document.getElementById(id);
-    if (!canvas) return;
-    canvas.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      window.mixel._showMenu(e.clientX, e.clientY, [
-        { label: '↺  Reset all depths → 1',       action: 'reset-to-one' },
-        { label: '✕  Erase all depths → 0',        action: 'erase-all'   },
-        { label: '⬛  Fill all → current level',   action: 'fill-all'    },
-        { label: '⇅  Invert depths',               action: 'invert'      },
-      ], (action) => dotNetRef.invokeMethodAsync('OnContextAction', action));
-    });
-  },
-
   listenModelContextMenu: function (el) {
     if (!el) return;
     el.addEventListener('contextmenu', (e) => {
@@ -192,19 +178,35 @@ window.mixel = {
       return { x, y };
     };
     canvas.__mixelDown = false;
-    canvas.addEventListener("contextmenu", (e) => e.preventDefault());
-    canvas.addEventListener("pointerdown", (e) => {
+    const onContextMenu = (e) => e.preventDefault();
+    const onDown = (e) => {
       canvas.__mixelDown = true;
       canvas.setPointerCapture(e.pointerId);
       const {x, y} = toPixel(e);
       dotNetRef.invokeMethodAsync("OnCanvasInput", x, y, e.buttons);
-    });
-    canvas.addEventListener("pointermove", (e) => {
+    };
+    const onMove = (e) => {
       if (!canvas.__mixelDown) return;
       const {x, y} = toPixel(e);
       dotNetRef.invokeMethodAsync("OnCanvasInput", x, y, e.buttons);
-    });
-    canvas.addEventListener("pointerup", () => { canvas.__mixelDown = false; });
+    };
+    const onUp = () => { canvas.__mixelDown = false; };
+    canvas.addEventListener("contextmenu", onContextMenu);
+    canvas.addEventListener("pointerdown", onDown);
+    canvas.addEventListener("pointermove", onMove);
+    canvas.addEventListener("pointerup", onUp);
+    canvas.__mixelDepthCleanup = () => {
+      canvas.removeEventListener("contextmenu", onContextMenu);
+      canvas.removeEventListener("pointerdown", onDown);
+      canvas.removeEventListener("pointermove", onMove);
+      canvas.removeEventListener("pointerup", onUp);
+    };
+  },
+
+  disposeDepthCanvas: function (id) {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    if (canvas.__mixelDepthCleanup) { canvas.__mixelDepthCleanup(); canvas.__mixelDepthCleanup = null; }
   },
 
   fetchBytes: async function (url) {

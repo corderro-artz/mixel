@@ -49,7 +49,7 @@
             _canvasReady = true;
             await Js.InitDepthCanvasAsync("depth-canvas", Item.RgbaBytes, Item.DepthWidth, Item.DepthHeight);
             await Js.RenderDepthOverlayAsync("depth-canvas", Item.DepthLevels,
-                Item.DepthWidth, Item.DepthHeight, Settings.MaxDepthLevels);
+                Item.DepthWidth, Item.DepthHeight);
             await Js.RenderDepthLabelsAsync("depth-canvas", "depth-labels",
                 Item.DepthLevels, Item.DepthWidth, Item.DepthHeight);
         }
@@ -66,7 +66,8 @@
     public async Task OnCanvasInput(int x, int y, int buttons)
     {
         if (Item?.DepthLevels == null) return;
-        var mask = Item.SolidMask ?? Item.DepthLevels.Select(l => l != 0).ToArray();
+        if (Item.SolidMask is null) return;
+        var mask = Item.SolidMask;
         bool changed = false;
 
         if (Painter.Tool == PainterTool.Paint)
@@ -96,7 +97,7 @@
 
         if (!changed) return;
         await Js.RenderDepthOverlayAsync("depth-canvas", Item.DepthLevels,
-            Item.DepthWidth, Item.DepthHeight, Settings.MaxDepthLevels);
+            Item.DepthWidth, Item.DepthHeight);
         await Js.RenderDepthLabelsAsync("depth-canvas", "depth-labels",
             Item.DepthLevels, Item.DepthWidth, Item.DepthHeight);
         await OnChanged.InvokeAsync();
@@ -111,7 +112,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        await JSRuntime.InvokeVoidAsync("mixel.disposeDepthCanvas", "depth-canvas");
         _self?.Dispose();
-        await Task.CompletedTask;
     }
 }

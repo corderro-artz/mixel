@@ -14,10 +14,6 @@ public sealed class DepthPainterState
         int idx = y * w + x;
         switch (Tool)
         {
-            case PainterTool.Paint:
-                if (!solidMask[idx] || levels[idx] == ActiveLevel) return false;
-                levels[idx] = ActiveLevel;
-                return true;
             case PainterTool.Erase:
                 if (levels[idx] == 0) return false;
                 levels[idx] = 0;

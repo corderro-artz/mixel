@@ -34,32 +34,8 @@ public static class MeshBuilder
         var mesh = new Mesh();
 
         // Front and back faces via greedy maximal rectangles over the solid mask.
-        var used = new bool[w * h];
-        for (int y = 0; y < h; y++)
-        {
-            for (int x = 0; x < w; x++)
-            {
-                if (!mask.At(x, y) || used[y * w + x]) continue;
-
-                int x1 = x;
-                while (x1 + 1 < w && mask.At(x1 + 1, y) && !used[y * w + x1 + 1]) x1++;
-
-                int y1 = y;
-                bool canGrow = true;
-                while (canGrow && y1 + 1 < h)
-                {
-                    for (int xx = x; xx <= x1; xx++)
-                        if (!mask.At(xx, y1 + 1) || used[(y1 + 1) * w + xx]) { canGrow = false; break; }
-                    if (canGrow) y1++;
-                }
-
-                for (int yy = y; yy <= y1; yy++)
-                    for (int xx = x; xx <= x1; xx++)
-                        used[yy * w + xx] = true;
-
-                AddFrontBack(mesh, x, y, x1, y1, w, h, s, zf, zb);
-            }
-        }
+        foreach (var (x, y, x1, y1) in GreedyRects(w, h, (px, py) => mask.At(px, py)))
+            AddFrontBack(mesh, x, y, x1, y1, w, h, s, zf, zb);
 
         // Perimeter walls: solid pixel touching an empty or out-of-bounds neighbour.
         // In simple mode all boundary neighbours are empty (nd=0), so walls always
@@ -331,7 +307,12 @@ public static class MeshBuilder
         AddVertex(mesh, p1, n, uv1);
         AddVertex(mesh, p2, n, uv2);
         AddVertex(mesh, p3, n, uv3);
-        mesh.Indices.AddRange(new[] { b + 0, b + 1, b + 2, b + 0, b + 2, b + 3 });
+        mesh.Indices.Add(b);
+        mesh.Indices.Add(b + 1);
+        mesh.Indices.Add(b + 2);
+        mesh.Indices.Add(b);
+        mesh.Indices.Add(b + 2);
+        mesh.Indices.Add(b + 3);
     }
 
     private static void AddVertex(

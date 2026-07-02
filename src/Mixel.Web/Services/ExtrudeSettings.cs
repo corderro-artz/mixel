@@ -13,7 +13,7 @@ public sealed class ExtrudeSettings
     public int  MaxDepthLevels { get; set; } = 16;
     public ExtrudeMode ExtrudeMode { get; set; } = ExtrudeMode.Front;
 
-    public ExtrudeOptions ToOptions(byte[] png) => new()
+    private ExtrudeOptions ToOptions(byte[] png) => new()
     {
         PngBytes = png,
         Depth = Depth,

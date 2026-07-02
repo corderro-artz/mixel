@@ -29,8 +29,8 @@ public sealed class MixelJs
     public ValueTask InitDepthCanvasAsync(string id, byte[] rgbaBytes, int w, int h)
         => _js.InvokeVoidAsync("mixel.initDepthCanvas", id, rgbaBytes, w, h);
 
-    public ValueTask RenderDepthOverlayAsync(string id, byte[] levels, int w, int h, int maxDepth)
-        => _js.InvokeVoidAsync("mixel.renderDepthOverlay", id, levels, w, h, maxDepth);
+    public ValueTask RenderDepthOverlayAsync(string id, byte[] levels, int w, int h)
+        => _js.InvokeVoidAsync("mixel.renderDepthOverlay", id, levels, w, h);
 
     public ValueTask<byte[]> FetchBytesAsync(string url)
         => _js.InvokeAsync<byte[]>("mixel.fetchBytes", url);
