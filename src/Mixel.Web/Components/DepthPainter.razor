@@ -13,16 +13,10 @@
                 @onclick="@(()=>SetTool(PainterTool.Fill))">🪣</button>
         <button class="tool-btn @Active(PainterTool.Erase)"   data-test="tool-erase"
                 @onclick="@(()=>SetTool(PainterTool.Erase))">✕</button>
-        @if (Painter.Tool == PainterTool.Fill)
-        {
-            <span class="level-badge" data-test="level-badge">Lv @Painter.ActiveLevel</span>
-        }
-        @if (ShowSimpleModeHint)
-        {
-            <span class="depth-mode-warn"
-                  data-tip="Painted depths ignored in Simple mode — switch to Per-pixel to use them."
-                  aria-label="Painted depths ignored in Simple mode">⚠</span>
-        }
+        <span class="level-badge @(Painter.Tool == PainterTool.Fill ? "" : "invis")" data-test="level-badge">Lv @Painter.ActiveLevel</span>
+        <span class="depth-mode-warn @(ShowSimpleModeHint ? "" : "invis")"
+              data-tip="Painted depths ignored in Simple mode — switch to Per-pixel to use them."
+              aria-label="Painted depths ignored in Simple mode">⚠</span>
     </div>
 
     <div class="depth-canvas-center">
