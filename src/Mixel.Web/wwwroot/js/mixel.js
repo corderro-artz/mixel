@@ -90,7 +90,7 @@ window.mixel = {
     const cellH = cssH / h;
     const fontSize = Math.max(5, Math.floor(Math.min(cellW, cellH) * 0.6));
 
-    ctx.font = `bold ${fontSize}px monospace`;
+    ctx.font = `bold ${fontSize}px Arial, system-ui, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 

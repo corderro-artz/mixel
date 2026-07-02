@@ -21,6 +21,11 @@
         }
     </div>
 
+    @if (ShowSimpleModeHint)
+    {
+        <p class="depth-mode-hint">Painted depths ignored in Simple mode — switch to Per-pixel to use them.</p>
+    }
+
     <div class="depth-canvas-wrap">
         <canvas id="depth-canvas" class="depth-canvas" data-test="depth-canvas"></canvas>
         <canvas id="depth-labels" class="depth-labels"></canvas>
@@ -116,6 +121,10 @@
             Item.DepthLevels, Item.DepthWidth, Item.DepthHeight);
         await OnChanged.InvokeAsync();
     }
+
+    private bool ShowSimpleModeHint =>
+        !Settings.PerPixelMode &&
+        Item?.DepthLevels?.Any(l => l > 1) == true;
 
     private void SetTool(PainterTool tool) { Painter.Tool = tool; StateHasChanged(); }
     private string Active(PainterTool tool) => Painter.Tool == tool ? "active" : "";
