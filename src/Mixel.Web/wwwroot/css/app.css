@@ -156,7 +156,9 @@ body { background: var(--bg); color: var(--tx); font: 16px/1.5 var(--font-body);
 .depth-canvas-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
 .depth-canvas { image-rendering: pixelated; image-rendering: crisp-edges; max-width: 100%; cursor: crosshair; display: block; }
 .depth-labels { position: absolute; inset: 0; pointer-events: none; image-rendering: auto; display: block; }
-.depth-mode-hint { font-size: 12px; color: var(--mut); background: var(--bg2); border-radius: 6px; padding: 4px 10px; margin: 0; }
+.depth-mode-warn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; font-size: 17px; color: var(--mut); cursor: default; }
+.depth-mode-warn::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); left: 0; background: var(--panel); border: 1px solid var(--bd); color: var(--tx); font: 500 12px/1.4 var(--font-body); white-space: nowrap; padding: 5px 9px; border-radius: 7px; pointer-events: none; opacity: 0; transition: opacity .15s; z-index: 20; box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+.depth-mode-warn:hover::after { opacity: 1; }
 .painter-tools { display: flex; align-items: center; gap: 6px; }
 .tool-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--bd); background: var(--bg); color: var(--tx); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
 .tool-btn.active, .tool-btn:hover { background: var(--acc); color: var(--acc-tx); border-color: var(--acc); }

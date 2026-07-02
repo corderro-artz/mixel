@@ -17,12 +17,13 @@
         {
             <span class="level-badge" data-test="level-badge">Lv @Painter.ActiveLevel</span>
         }
+        @if (ShowSimpleModeHint)
+        {
+            <span class="depth-mode-warn"
+                  data-tip="Painted depths ignored in Simple mode — switch to Per-pixel to use them."
+                  aria-label="Painted depths ignored in Simple mode">⚠</span>
+        }
     </div>
-
-    @if (ShowSimpleModeHint)
-    {
-        <p class="depth-mode-hint">Painted depths ignored in Simple mode — switch to Per-pixel to use them.</p>
-    }
 
     <div class="depth-canvas-center">
         <div class="depth-canvas-wrap">
