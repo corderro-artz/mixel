@@ -7,12 +7,6 @@ public sealed record BatchOutcome(string Input, bool Success, string? Error);
 
 public static class ExtrusionService
 {
-    public static byte[] PreviewGlb(byte[] png, ExtrudeSettings s, FileItem? item = null)
-    {
-        var opts = s.ToOptions(png, item) with { Format = GltfFormat.Glb };
-        return Extruder.ExtrudeGlb(opts);
-    }
-
     public static IReadOnlyList<MixelFile> Single(byte[] png, string baseName, ExtrudeSettings s, FileItem? item = null)
         => Extruder.ExtrudeToMemory(s.ToOptions(png, item), baseName);
 

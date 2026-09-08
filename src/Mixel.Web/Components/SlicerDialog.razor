@@ -1,0 +1,152 @@
+@using Mixel.Core
+@using Mixel.Web.Interop
+@using Mixel.Web.Services
+@using Microsoft.JSInterop
+@inject MixelJs Js
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<div class="slicer-overlay" data-test="slicer-overlay">
+    <div class="slicer-panel">
+        <div class="slicer-head">
+            <span class="slicer-title">Slice spritesheet — @SheetName</span>
+            <button type="button" class="icon-btn" aria-label="Close slicer" @onclick="CloseAsync">✕</button>
+        </div>
+
+        @if (_error is not null)
+        {
+            <div class="slicer-error" data-test="slicer-error">@_error</div>
+        }
+        else
+        {
+            <div class="slicer-body">
+                <div class="slicer-canvas-wrap">
+                    <div class="slicer-stack">
+                        <canvas id="slicer-canvas" class="slicer-canvas"></canvas>
+                        <canvas id="slicer-overlay-canvas" class="slicer-overlay-canvas" data-test="slicer-overlay-canvas"></canvas>
+                    </div>
+                </div>
+
+                <div class="slicer-side">
+                    <p class="slicer-hint">Drag on the sheet to mark a sprite.</p>
+                    @if (_notice is not null)
+                    {
+                        <div class="slicer-notice" data-test="slicer-notice">@_notice</div>
+                    }
+                    <ul class="slicer-regions" data-test="slicer-regions">
+                        @foreach (var region in _state.Regions)
+                        {
+                            var r = region;
+                            <li class="slicer-region">
+                                <input class="slicer-name" value="@r.Name"
+                                       @onchange="e => RenameAsync(r, e.Value?.ToString())" />
+                                <span class="slicer-size @SizeClass(r)">@r.Rect.Width×@r.Rect.Height</span>
+                                <button type="button" class="icon-btn" aria-label="Delete sprite"
+                                        @onclick="() => RemoveAsync(r)">✕</button>
+                            </li>
+                        }
+                    </ul>
+                    <button type="button" class="btn primary slicer-confirm" data-test="slicer-confirm"
+                            disabled="@(_state.Regions.Count == 0)" @onclick="ConfirmAsync">
+                        Add @_state.Regions.Count sprite@(_state.Regions.Count == 1 ? "" : "s") to editor
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public byte[] SheetBytes { get; set; } = default!;
+    [Parameter] public string SheetName  { get; set; } = "spritesheet.png";
+    [Parameter] public bool AllowNonStandardSize { get; set; }
+    [Parameter] public EventCallback<IReadOnlyList<(string name, byte[] bytes)>> OnExtract { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private readonly SlicerState _state = new();
+    private RgbaImage? _image;
+    private string? _error;
+    private string? _notice;
+    private DotNetObjectReference<SlicerDialog>? _self;
+    private bool _canvasReady;
+    private record SlicerRegionPayload(int x, int y, int w, int h, string name);
+
+    protected override void OnInitialized()
+    {
+        try { _image = PngLoader.Load(SheetBytes); }
+        catch (InvalidPngException ex) { _error = $"Could not open spritesheet: {ex.Message}"; }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_image is null || _canvasReady) return;
+        _canvasReady = true;
+        _self = DotNetObjectReference.Create(this);
+        await JSRuntime.InvokeVoidAsync("mixel.initSlicer", "slicer-canvas", "slicer-overlay-canvas",
+            ToRgbaBytes(_image), _image.Width, _image.Height, _self);
+    }
+
+    [JSInvokable]
+    public async Task OnRegionDrawn(int x, int y, int w, int h)
+    {
+        if (_image is null) return;
+        if (_state.TryAdd(new SpriteRect(x, y, w, h), out var error))
+        {
+            _notice = null;
+            await RenderRegionsAsync();
+        }
+        else
+        {
+            _notice = error;
+        }
+        StateHasChanged();
+    }
+
+    private async Task RenderRegionsAsync()
+    {
+        var payload = _state.Regions
+            .Select(r => new SlicerRegionPayload(r.Rect.X, r.Rect.Y, r.Rect.Width, r.Rect.Height, r.Name))
+            .ToArray();
+        await Js.RenderSlicerRegionsAsync("slicer-overlay-canvas", payload);
+    }
+
+    private async Task RenameAsync(SliceRegion region, string? name)
+    {
+        _state.Rename(region, name ?? string.Empty);
+        await RenderRegionsAsync();
+    }
+
+    private async Task RemoveAsync(SliceRegion region)
+    {
+        _state.Remove(region);
+        await RenderRegionsAsync();
+    }
+
+    private string SizeClass(SliceRegion region)
+        => (!AllowNonStandardSize && !_state.IsStandardSize(region)) ? "nonstandard" : "";
+
+    private async Task ConfirmAsync()
+    {
+        if (_image is null || _state.Regions.Count == 0) return;
+        await OnExtract.InvokeAsync(_state.BuildExtract(_image));
+    }
+
+    private Task CloseAsync() => OnClose.InvokeAsync();
+
+    private static byte[] ToRgbaBytes(RgbaImage img)
+    {
+        var data = new byte[img.Pixels.Length * 4];
+        for (int i = 0; i < img.Pixels.Length; i++)
+        {
+            var p = img.Pixels[i];
+            data[i * 4] = p.R; data[i * 4 + 1] = p.G; data[i * 4 + 2] = p.B; data[i * 4 + 3] = p.A;
+        }
+        return data;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await Js.DisposeSlicerAsync("slicer-overlay-canvas"); } catch { }
+        _self?.Dispose();
+    }
+}

@@ -15,14 +15,14 @@
 </TopBar>
 
 <div class="workspace">
-    <FilePanel Items="_files" SelectedPreview="_selected"
+    <FilePanel Items="_files" Sheets="_sheets" SelectedPreview="_previewIdx"
                OnUpload="HandleUpload" OnLoadSample="LoadSampleAsync"
                OnPreview="SelectAsync" OnToggle="ToggleAsync"
-               OnSelectAll="SelectAll" OnDeselectAll="DeselectAll" />
+               OnSelectAll="SelectAll" OnDeselectAll="DeselectAll"
+               OnUploadSheet="HandleSheetUpload" OnSliceSheet="OpenSlicer" />
 
     <section class="stage">
-        @* Depth painter fills stage when in per-pixel mode and not expanded *@
-        @if (_settings.PerPixelMode && CurrentItem != null && !_previewExpanded)
+        @if (CurrentItem != null && !_previewExpanded)
         {
             <div class="stage-content">
                 <DepthPainter Item="CurrentItem" Settings="_settings" OnChanged="RegenAsync" />
@@ -62,16 +62,26 @@
     </section>
 </div>
 
+@if (_sheetBytes is not null)
+{
+    <SlicerDialog SheetBytes="_sheetBytes" SheetName="@_sheetName"
+                  AllowNonStandardSize="_settings.AllowNonStandardSize"
+                  OnExtract="OnSlicerExtract" OnClose="CloseSlicer" />
+}
+
 @code {
     private readonly ExtrudeSettings _settings = new();
     private List<FileItem> _files = new();
-    private int _selected = -1;
+    private List<SpritesheetItem> _sheets = new();
+    private int _previewIdx = -1;
     private ModelPreview? _preview;
     private string? _notice;
     private bool _previewExpanded = false;
+    private byte[]? _sheetBytes;
+    private string _sheetName = "spritesheet.png";
 
     private int _selectedCount => _files.Count(f => f.Selected);
-    private FileItem? CurrentItem => _selected >= 0 && _selected < _files.Count ? _files[_selected] : null;
+    private FileItem? CurrentItem => _previewIdx >= 0 && _previewIdx < _files.Count ? _files[_previewIdx] : null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -82,7 +92,7 @@
     private async void OnThemeChanged()
     {
         try { await Js.SetThemeAttributeAsync(Theme.CurrentId); await InvokeAsync(StateHasChanged); }
-        catch (Exception) { }
+        catch (Exception ex) { Console.Error.WriteLine(ex); }
     }
 
     private async Task LoadSampleAsync()
@@ -94,18 +104,24 @@
     private async Task HandleUpload(IReadOnlyList<(string name, byte[] bytes)> files)
     {
         bool wasEmpty = _files.Count == 0;
+        int firstNew = _files.Count;
         foreach (var (name, bytes) in files)
             _files.Add(new FileItem { Name = name, Bytes = bytes });
-        if (wasEmpty && _files.Count > 0) _selected = 0;
-        if (_settings.PerPixelMode)
-            foreach (var f in _files) EnsureDepthLevels(f);
+        if (wasEmpty && _files.Count > 0) _previewIdx = 0;
+        foreach (var f in _files.Skip(firstNew)) EnsureDepthLevels(f);
         await RegenAsync();
+    }
+
+    private void HandleSheetUpload((string name, byte[] bytes) sheet)
+    {
+        _sheets.Add(new SpritesheetItem { Name = sheet.name, Bytes = sheet.bytes });
+        StateHasChanged();
     }
 
     private async Task SelectAsync(int idx)
     {
-        _selected = idx;
-        if (_settings.PerPixelMode) EnsureDepthLevels(CurrentItem);
+        _previewIdx = idx;
+        EnsureDepthLevels(CurrentItem);
         await RegenAsync();
     }
 
@@ -121,12 +137,27 @@
 
     private async Task OnSettingsChanged()
     {
-        if (_settings.PerPixelMode) EnsureDepthLevels(CurrentItem);
+        EnsureDepthLevels(CurrentItem);
         await RegenAsync();
     }
 
     private void ExpandPreview() { _previewExpanded = true; StateHasChanged(); }
     private void CollapsePreview() { _previewExpanded = false; StateHasChanged(); }
+
+    private void OpenSlicer(SpritesheetItem sheet)
+    {
+        _sheetName  = sheet.Name;
+        _sheetBytes = sheet.Bytes;
+        StateHasChanged();
+    }
+
+    private void CloseSlicer() { _sheetBytes = null; StateHasChanged(); }
+
+    private async Task OnSlicerExtract(IReadOnlyList<(string name, byte[] bytes)> sprites)
+    {
+        _sheetBytes = null;
+        await HandleUpload(sprites);
+    }
 
     private static void EnsureDepthLevels(FileItem? item)
     {
@@ -158,12 +189,13 @@
 
     private async Task RegenAsync()
     {
-        if (_selected < 0 || _selected >= _files.Count || _preview is null) return;
+        if (_previewIdx < 0 || _previewIdx >= _files.Count || _preview is null) return;
         try
         {
             var item = CurrentItem;
             if (item is null) return;
-            var glb = ExtrusionService.PreviewGlb(item.Bytes, _settings, item);
+            var previewOpts = _settings.ToOptions(item.Bytes, item) with { Format = GltfFormat.Glb, AllowNonStandardSize = true };
+            var glb = Extruder.ExtrudeGlb(previewOpts);
             await _preview.ShowAsync(glb);
             _notice = null;
         }

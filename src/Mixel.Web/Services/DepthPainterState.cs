@@ -1,34 +1,23 @@
-using System.Collections.Generic;
-
 namespace Mixel.Web.Services;
 
-public enum PainterTool { Paint, Erase, Eyedrop, Fill }
+public enum PainterTool { Paint, Erase, Fill }
 
 public sealed class DepthPainterState
 {
     public PainterTool Tool        { get; set; } = PainterTool.Paint;
     public byte        ActiveLevel { get; set; } = 1;
 
-    /// <summary>Apply the active tool at (x,y). Returns true if levels was mutated.</summary>
+    /// <summary>Apply the active tool (Paint or Erase) at (x,y). Returns true if levels was mutated.</summary>
     public bool Apply(byte[] levels, bool[] solidMask, int w, int h, int x, int y)
     {
         if (x < 0 || y < 0 || x >= w || y >= h) return false;
         int idx = y * w + x;
         switch (Tool)
         {
-            case PainterTool.Paint:
-                if (!solidMask[idx] || levels[idx] == ActiveLevel) return false;
-                levels[idx] = ActiveLevel;
-                return true;
             case PainterTool.Erase:
                 if (levels[idx] == 0) return false;
                 levels[idx] = 0;
                 return true;
-            case PainterTool.Eyedrop:
-                if (levels[idx] > 0) ActiveLevel = levels[idx];
-                return false;
-            case PainterTool.Fill:
-                return FloodFill(levels, solidMask, w, h, x, y);
             default:
                 return false;
         }
@@ -50,31 +39,44 @@ public sealed class DepthPainterState
         return true;
     }
 
-    private bool FloodFill(byte[] levels, bool[] solidMask, int w, int h, int sx, int sy)
+    /// <summary>
+    /// Decrease the depth level at (x,y) by 1, minimum 1. Air pixels are no-ops.
+    /// Returns true if levels was mutated.
+    /// </summary>
+    public bool DecreaseLevel(byte[] levels, bool[] solidMask, int w, int h, int x, int y)
     {
+        if (x < 0 || y < 0 || x >= w || y >= h) return false;
+        int idx = y * w + x;
+        if (!solidMask[idx] || levels[idx] <= 1) return false;
+        levels[idx]--;
+        return true;
+    }
+
+    /// <summary>
+    /// Fill every solid pixel whose RGBA color matches the pixel at (sx,sy) with ActiveLevel.
+    /// Returns true if any level was mutated.
+    /// </summary>
+    public bool ColorFill(byte[] levels, bool[] solidMask, byte[] rgba, int w, int h, int sx, int sy)
+    {
+        if (sx < 0 || sy < 0 || sx >= w || sy >= h) return false;
         int startIdx = sy * w + sx;
         if (!solidMask[startIdx]) return false;
-        byte target = levels[startIdx];
-        if (target == ActiveLevel) return false;
 
-        var queue   = new Queue<(int x, int y)>();
-        var visited = new bool[w * h];
-        queue.Enqueue((sx, sy));
-        visited[startIdx] = true;
+        int ri0 = startIdx * 4;
+        byte tr = rgba[ri0], tg = rgba[ri0 + 1], tb = rgba[ri0 + 2], ta = rgba[ri0 + 3];
 
-        while (queue.Count > 0)
+        bool changed = false;
+        for (int i = 0; i < solidMask.Length; i++)
         {
-            var (x, y) = queue.Dequeue();
-            levels[y * w + x] = ActiveLevel;
-            foreach (var (nx, ny) in new[] { (x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1) })
+            if (!solidMask[i]) continue;
+            int ri = i * 4;
+            if (rgba[ri] == tr && rgba[ri + 1] == tg && rgba[ri + 2] == tb && rgba[ri + 3] == ta
+                && levels[i] != ActiveLevel)
             {
-                if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
-                int nIdx = ny * w + nx;
-                if (visited[nIdx] || levels[nIdx] != target || !solidMask[nIdx]) continue;
-                visited[nIdx] = true;
-                queue.Enqueue((nx, ny));
+                levels[i] = ActiveLevel;
+                changed = true;
             }
         }
-        return true;
+        return changed;
     }
 }

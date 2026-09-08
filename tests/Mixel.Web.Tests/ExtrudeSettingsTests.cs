@@ -10,7 +10,7 @@ public class ExtrudeSettingsTests
         var s = new ExtrudeSettings { Depth = 4, VoxelSize = 2.5, Format = GltfFormat.GltfEmbedded, Pivot = Pivot.Center };
         var png = new byte[] { 1, 2, 3 };
 
-        var o = s.ToOptions(png);
+        var o = s.ToOptions(png, null);
 
         Assert.Same(png, o.PngBytes);
         Assert.Equal(4, o.Depth);

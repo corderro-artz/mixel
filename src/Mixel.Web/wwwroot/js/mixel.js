@@ -29,12 +29,12 @@ window.mixel = {
     if (!canvas) return;
     canvas.width = w;
     canvas.height = h;
-    // Scale to fill the painter container (skip canvas-wrap which has no intrinsic size yet)
+    const center = canvas.closest('.depth-canvas-center');
     const parent = canvas.closest('.depth-painter') || canvas.parentElement;
-    if (parent) {
-      // 56px top padding + ~44px toolbar row + 8px gap + 8px bottom padding = ~116px overhead
-      const availW = parent.clientWidth  - 16;
-      const availH = parent.clientHeight - 116;
+    const sizer  = center || parent;
+    if (sizer) {
+      const availW = sizer.clientWidth  - 16;
+      const availH = sizer.clientHeight - 16;
       const scale  = Math.max(1, Math.min(Math.floor(availW / w), Math.floor(availH / h)));
       canvas.style.width  = (w * scale) + 'px';
       canvas.style.height = (h * scale) + 'px';
@@ -46,7 +46,7 @@ window.mixel = {
     canvas.__mixelPng = imageData;
   },
 
-  renderDepthOverlay: function (id, levels, w, h, maxDepth) {
+  renderDepthOverlay: function (id, levels, w, h) {
     const canvas = document.getElementById(id);
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -90,7 +90,7 @@ window.mixel = {
     const cellH = cssH / h;
     const fontSize = Math.max(5, Math.floor(Math.min(cellW, cellH) * 0.6));
 
-    ctx.font = `bold ${fontSize}px monospace`;
+    ctx.font = `bold ${fontSize}px Arial, system-ui, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
@@ -152,20 +152,6 @@ window.mixel = {
     if (window.mixel._ctxMenu) { window.mixel._ctxMenu.remove(); window.mixel._ctxMenu = null; }
   },
 
-  listenContextMenu: function (id, dotNetRef) {
-    const canvas = document.getElementById(id);
-    if (!canvas) return;
-    canvas.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      window.mixel._showMenu(e.clientX, e.clientY, [
-        { label: '↺  Reset all depths → 1',       action: 'reset-to-one' },
-        { label: '✕  Erase all depths → 0',        action: 'erase-all'   },
-        { label: '⬛  Fill all → current level',   action: 'fill-all'    },
-        { label: '⇅  Invert depths',               action: 'invert'      },
-      ], (action) => dotNetRef.invokeMethodAsync('OnContextAction', action));
-    });
-  },
-
   listenModelContextMenu: function (el) {
     if (!el) return;
     el.addEventListener('contextmenu', (e) => {
@@ -192,24 +178,155 @@ window.mixel = {
       return { x, y };
     };
     canvas.__mixelDown = false;
-    canvas.addEventListener("pointerdown", (e) => {
+    const onContextMenu = (e) => e.preventDefault();
+    const onDown = (e) => {
       canvas.__mixelDown = true;
       canvas.setPointerCapture(e.pointerId);
       const {x, y} = toPixel(e);
       dotNetRef.invokeMethodAsync("OnCanvasInput", x, y, e.buttons);
-    });
-    canvas.addEventListener("pointermove", (e) => {
+    };
+    const onMove = (e) => {
       if (!canvas.__mixelDown) return;
       const {x, y} = toPixel(e);
       dotNetRef.invokeMethodAsync("OnCanvasInput", x, y, e.buttons);
-    });
-    canvas.addEventListener("pointerup", () => { canvas.__mixelDown = false; });
+    };
+    const onUp = () => { canvas.__mixelDown = false; };
+    canvas.addEventListener("contextmenu", onContextMenu);
+    canvas.addEventListener("pointerdown", onDown);
+    canvas.addEventListener("pointermove", onMove);
+    canvas.addEventListener("pointerup", onUp);
+    canvas.__mixelDepthCleanup = () => {
+      canvas.removeEventListener("contextmenu", onContextMenu);
+      canvas.removeEventListener("pointerdown", onDown);
+      canvas.removeEventListener("pointermove", onMove);
+      canvas.removeEventListener("pointerup", onUp);
+    };
+  },
+
+  disposeDepthCanvas: function (id) {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    if (canvas.__mixelDepthCleanup) { canvas.__mixelDepthCleanup(); canvas.__mixelDepthCleanup = null; }
   },
 
   fetchBytes: async function (url) {
     const r = await fetch(url);
     if (!r.ok) throw new Error(`fetch ${url} → ${r.status}`);
     return new Uint8Array(await r.arrayBuffer());
+  },
+
+  // ---- spritesheet slicer ----
+  _paintSlicer: function (overlay, liveRect) {
+    if (!overlay || !overlay.__mixelNat) return;
+    const { w, h } = overlay.__mixelNat;
+    const ctx = overlay.getContext("2d");
+    ctx.clearRect(0, 0, overlay.width, overlay.height);
+    const sX = overlay.width / w, sY = overlay.height / h;
+    ctx.font = "bold 12px monospace";
+    ctx.textBaseline = "top";
+    const one = (rg, withLabel) => {
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(255,255,255,0.95)";
+      ctx.strokeRect(rg.x * sX + 1, rg.y * sY + 1, rg.w * sX - 2, rg.h * sY - 2);
+      if (withLabel && rg.name != null) {
+        const tw = ctx.measureText(rg.name).width + 8;
+        ctx.fillStyle = "rgba(0,0,0,0.75)";
+        ctx.fillRect(rg.x * sX + 1, rg.y * sY + 1, tw, 16);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(rg.name, rg.x * sX + 5, rg.y * sY + 3);
+      }
+    };
+    for (const rg of (overlay.__mixelRegions || [])) one(rg, true);
+    if (liveRect) one(liveRect, false);
+  },
+
+  initSlicer: function (baseId, overlayId, rgbaBytes, w, h, dotNetRef) {
+    const base = document.getElementById(baseId);
+    const overlay = document.getElementById(overlayId);
+    if (!base || !overlay) return;
+
+    base.width = w; base.height = h;
+    const wrap = base.closest(".slicer-canvas-wrap") || base.parentElement;
+    let scale = 1;
+    if (wrap) {
+      const availW = wrap.clientWidth - 32;
+      const availH = wrap.clientHeight - 32;
+      scale = Math.max(1, Math.min(Math.floor(availW / w), Math.floor(availH / h)));
+    }
+    const dispW = w * scale, dispH = h * scale;
+    base.style.width = dispW + "px";
+    base.style.height = dispH + "px";
+
+    const bctx = base.getContext("2d");
+    const imageData = bctx.createImageData(w, h);
+    for (let i = 0; i < rgbaBytes.length; i++) imageData.data[i] = rgbaBytes[i];
+    bctx.putImageData(imageData, 0, 0);
+
+    overlay.width = dispW; overlay.height = dispH;
+    overlay.style.width = dispW + "px";
+    overlay.style.height = dispH + "px";
+    overlay.__mixelNat = { w, h };
+    overlay.__mixelRegions = [];
+
+    const toPixel = (e) => {
+      const r = overlay.getBoundingClientRect();
+      let x = Math.floor((e.clientX - r.left) / r.width  * w);
+      let y = Math.floor((e.clientY - r.top)  / r.height * h);
+      x = Math.max(0, Math.min(w - 1, x));
+      y = Math.max(0, Math.min(h - 1, y));
+      return { x, y };
+    };
+
+    let dragging = false, sx = 0, sy = 0;
+    const norm = (px, py) => ({
+      x: Math.min(sx, px), y: Math.min(sy, py),
+      w: Math.abs(px - sx) + 1, h: Math.abs(py - sy) + 1,
+    });
+
+    const onDown = (e) => {
+      dragging = true;
+      overlay.setPointerCapture(e.pointerId);
+      const p = toPixel(e); sx = p.x; sy = p.y;
+    };
+    const onMove = (e) => {
+      if (!dragging) return;
+      const p = toPixel(e);
+      window.mixel._paintSlicer(overlay, norm(p.x, p.y));
+    };
+    const onUp = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      const p = toPixel(e);
+      const r = norm(p.x, p.y);
+      if (r.x + r.w > w) r.w = w - r.x;
+      if (r.y + r.h > h) r.h = h - r.y;
+      window.mixel._paintSlicer(overlay, null);
+      dotNetRef.invokeMethodAsync("OnRegionDrawn", r.x, r.y, r.w, r.h);
+    };
+
+    overlay.addEventListener("pointerdown", onDown);
+    overlay.addEventListener("pointermove", onMove);
+    overlay.addEventListener("pointerup", onUp);
+    overlay.__mixelSlicerCleanup = () => {
+      overlay.removeEventListener("pointerdown", onDown);
+      overlay.removeEventListener("pointermove", onMove);
+      overlay.removeEventListener("pointerup", onUp);
+    };
+  },
+
+  renderSlicerRegions: function (overlayId, regions) {
+    const overlay = document.getElementById(overlayId);
+    if (!overlay) return;
+    overlay.__mixelRegions = regions || [];
+    window.mixel._paintSlicer(overlay, null);
+  },
+
+  disposeSlicer: function (overlayId) {
+    const overlay = document.getElementById(overlayId);
+    if (!overlay) return;
+    if (overlay.__mixelSlicerCleanup) { overlay.__mixelSlicerCleanup(); overlay.__mixelSlicerCleanup = null; }
+    overlay.__mixelRegions = null;
+    overlay.__mixelNat = null;
   },
 
 };

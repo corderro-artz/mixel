@@ -38,7 +38,8 @@ public sealed class ThemeState
 
     public async Task SetAsync(string id)
     {
-        CurrentId = ThemeRegistry.ById(id).Id;
+        ThemeRegistry.ById(id); // throws if unknown
+        CurrentId = id;
         await _js.SaveThemeAsync(CurrentId);
         Changed?.Invoke();
     }

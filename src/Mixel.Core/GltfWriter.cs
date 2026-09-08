@@ -124,13 +124,15 @@ public static class GltfWriter
             }
 
             case GltfFormat.Gltf:
-            default:
             {
                 var dict = new Dictionary<string, ArraySegment<byte>>();
                 var ctx = WriteContext.CreateFromDictionary(dict);
                 ctx.WriteTextSchema2(baseName, model);
                 return dict.Select(kv => new MixelFile(kv.Key, kv.Value.ToArray())).ToList();
             }
+
+            default:
+                throw new ArgumentException($"Unsupported format: {format}");
         }
     }
 }
