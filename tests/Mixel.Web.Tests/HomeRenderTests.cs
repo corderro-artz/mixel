@@ -18,7 +18,7 @@ public class HomeRenderTests : BunitContext
         // "mi<b>x</b>el" renders as separate text nodes, so check for the logo div and "mi" text
         Assert.Contains("logo", cut.Markup);
         Assert.Contains("topbar", cut.Markup);
-        Assert.NotNull(cut.Find("select.theme-picker"));
+        Assert.Equal(2, cut.FindAll(".theme-toggle .tt-seg").Count); // light/dark toggle
         Assert.NotNull(cut.Find("model-viewer"));
     }
 

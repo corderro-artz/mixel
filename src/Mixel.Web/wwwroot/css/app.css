@@ -16,7 +16,10 @@ body { background: var(--bg); color: var(--tx); font: 16px/1.5 var(--font-body);
 .btn { font: 600 14px/1 var(--font-head); letter-spacing: .01em; padding: 11px 17px; border-radius: 9px; border: 1px solid var(--bd); background: transparent; color: var(--tx); cursor: pointer; }
 .btn.primary { background: var(--acc); color: var(--acc-tx); border-color: var(--acc); }
 .btn.primary:disabled { opacity: .5; cursor: default; }
-.theme-picker { background: var(--panel); color: var(--tx); border: 1px solid var(--bd); border-radius: 9px; padding: 9px; font: 600 13px/1 var(--font-body); }
+.theme-toggle { display: inline-flex; border: 1px solid var(--bd); border-radius: 9px; overflow: hidden; }
+.theme-toggle .tt-seg { background: var(--panel); color: var(--mut); border: none; padding: 8px 15px; font: 700 12px/1 var(--font-head); letter-spacing: .05em; text-transform: uppercase; cursor: pointer; transition: background .12s, color .12s; }
+.theme-toggle .tt-seg:not(.on):hover { color: var(--tx); }
+.theme-toggle .tt-seg.on { background: var(--acc); color: var(--acc-tx); }
 
 /* ---- workspace: file panel + stage ---- */
 .workspace { flex: 1; display: flex; min-height: 0; background: var(--bd); }

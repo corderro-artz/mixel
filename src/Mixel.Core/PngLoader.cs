@@ -11,6 +11,21 @@ public sealed class InvalidPngException : Exception
 
 public static class PngLoader
 {
+    // PNG files always begin with this 8-byte signature (see the PNG spec §5.2).
+    private static readonly byte[] Signature = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+
+    /// <summary>
+    /// True only if <paramref name="bytes"/> starts with the PNG signature. Cheap gate to
+    /// reject non-PNG uploads (SVG, JPG, etc.) before any decode is attempted.
+    /// </summary>
+    public static bool IsPng(byte[]? bytes)
+    {
+        if (bytes is null || bytes.Length < Signature.Length) return false;
+        for (int i = 0; i < Signature.Length; i++)
+            if (bytes[i] != Signature[i]) return false;
+        return true;
+    }
+
     public static RgbaImage Load(byte[] bytes)
     {
         ImageResult img;
