@@ -103,17 +103,39 @@
 
     private async Task HandleUpload(IReadOnlyList<(string name, byte[] bytes)> files)
     {
-        bool wasEmpty = _files.Count == 0;
-        int firstNew = _files.Count;
-        foreach (var (name, bytes) in files)
-            _files.Add(new FileItem { Name = name, Bytes = bytes });
-        if (wasEmpty && _files.Count > 0) _previewIdx = 0;
-        foreach (var f in _files.Skip(firstNew)) EnsureDepthLevels(f);
-        await RegenAsync();
+        // Only real PNGs are supported — reject anything else (SVG, JPG, …) before it
+        // reaches the decoder, which would otherwise throw or crash on garbage bytes.
+        var valid = files.Where(f => PngLoader.IsPng(f.bytes)).ToList();
+
+        if (valid.Count > 0)
+        {
+            bool wasEmpty = _files.Count == 0;
+            int firstNew = _files.Count;
+            foreach (var (name, bytes) in valid)
+                _files.Add(new FileItem { Name = name, Bytes = bytes });
+            if (wasEmpty && _files.Count > 0) _previewIdx = 0;
+            foreach (var f in _files.Skip(firstNew)) EnsureDepthLevels(f);
+            await RegenAsync();
+        }
+
+        int rejected = files.Count - valid.Count;
+        if (rejected > 0)
+        {
+            _notice = rejected == 1
+                ? "Skipped 1 file — only PNG images are supported."
+                : $"Skipped {rejected} files — only PNG images are supported.";
+            StateHasChanged();
+        }
     }
 
     private void HandleSheetUpload((string name, byte[] bytes) sheet)
     {
+        if (!PngLoader.IsPng(sheet.bytes))
+        {
+            _notice = "Skipped — only PNG spritesheets are supported.";
+            StateHasChanged();
+            return;
+        }
         _sheets.Add(new SpritesheetItem { Name = sheet.name, Bytes = sheet.bytes });
         StateHasChanged();
     }
